@@ -85,7 +85,7 @@ int main(int argc , char *argv[])
 			//tempp = strtok(NULL, " ");
 			int n;
   			FILE *fp;
-  			char *filename = "2.pdf";
+  			char *filename = "./download/2.pdf";
   			char buffer[SIZE];
   			fp = fopen(filename, "w");
 			int i=0;

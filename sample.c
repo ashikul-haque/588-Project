@@ -225,23 +225,32 @@ void *connection_handler(void *socket_desc)
 		else if(strcmp(tempp, "get") ==0) {
 			puts("get from server");
 			tempp = strtok(NULL, " ");
+			tempp = strtok(tempp, "\n");
 			FILE *fp;
-			char *filename = "1.pdf";
-			fp = fopen(filename, "r");
-			int n;
-  			char data[SIZE] = {0};
-  			int i = 0;
-  			while(fgets(data, SIZE, fp) != NULL) {
-    				if (write(sock, data, sizeof(data)) < 0) {
-      					perror("[-]Error in sending file.");
-      					exit(1);
-    				}
-    				printf("%d->",++i);	
-    				bzero(data, SIZE);
-  			}
-  			printf("\n");
-  			puts("upload complete!!");
-  			close(sock);
+			sprintf(tempp, "%s",tempp);
+			//puts(tempp);
+			
+			if( access( tempp, F_OK ) == 0 ) {
+				fp = fopen(tempp, "r");
+  				char data[SIZE] = {0};
+  				int i = 0;
+  				while(fgets(data, SIZE, fp) != NULL) {
+    					if (write(sock, data, sizeof(data)) < 0) {
+      						perror("[-]Error in sending file.");
+      						exit(1);
+    					}
+    					printf("%d->",++i);	
+    					bzero(data, SIZE);
+  				}
+  				printf("\n");
+  				puts("upload complete!!");
+  				close(sock);	
+			} else{
+				printf("failed to open file\n");
+				close(sock);
+				
+			}
+			
 		}
 		
 	}
