@@ -6,6 +6,7 @@
 #include<unistd.h>	//write
 
 #include<pthread.h> //for threading , link with lpthread
+#define SIZE 1024
 
 void *connection_handler(void *);
 
@@ -87,35 +88,61 @@ void *connection_handler(void *socket_desc)
 	
 	//Receive a message from client
 	int i=0;
+	char file_message[2000];
 	while( (read_size = recv(sock , client_message , 2000 , 0)) > 0 )
 	{
-		char file_message[2000];
 		strcat(file_message, client_message);
 		puts(client_message);
 		//getting file name
 		char *tempp;
-		tempp = strtok(client_message, ",");
-		//creating tracker file
-		char *token;
-		token = strtok(tempp, ".");
-		sprintf(token, "%s.track",token);
-		FILE *fp;
-		fp = fopen(token,"w");
-		if ( fp )
-   		{
-	   		fputs(file_message,fp);
-    		}
-    		else{
-    			printf("failed to open file\n");
-    		}
-		fclose(fp);
-		char temp[100];
-		sprintf(temp,"Got it %d!!",i++);
-		strcat(my_message,temp);
-		write(sock , my_message , strlen(my_message));
-		bzero(client_message, 2000);
-		bzero(my_message, 2000);
-		bzero(file_message, 2000);
+		tempp = strtok(file_message, " ");
+		if(strcmp(tempp, "create") ==0) {
+			//puts("create request");
+			//getting file name
+			tempp = strtok(NULL, " ");
+			//creating tracker file
+			char *token;
+			token = strtok(tempp, ".");
+			sprintf(token, "%s.track",token);
+			FILE *fp;
+			fp = fopen(token,"w");
+			if ( fp )
+   			{
+	   			fputs(client_message,fp);
+    			}
+    			else{
+    				printf("failed to open file\n");
+    			}
+			fclose(fp);
+			char temp[100];
+			sprintf(temp,"Got it %d!!",i++);
+			strcat(my_message,temp);
+			write(sock , my_message , strlen(my_message));
+			bzero(client_message, 2000);
+			bzero(my_message, 2000);
+			bzero(file_message, 2000);
+		}
+		if(strcmp(tempp, "get") ==0) {
+			puts("get from server");
+			FILE *fp;
+			char *filename = "1.pdf";
+			fp = fopen(filename, "r");
+			int n;
+  			char data[SIZE] = {0};
+  			int i = 0;
+  			while(fgets(data, SIZE, fp) != NULL) {
+    				if (write(sock, data, sizeof(data)) < 0) {
+      					perror("[-]Error in sending file.");
+      					exit(1);
+    				}
+    				printf("%d->",++i);	
+    				bzero(data, SIZE);
+  			}
+  			printf("\n");
+  			puts("upload complete!!");
+  			close(sock);
+		}
+		
 	}
 	
 	if(read_size == 0)
@@ -125,7 +152,7 @@ void *connection_handler(void *socket_desc)
 	}
 	else if(read_size == -1)
 	{
-		perror("recv failed");
+		perror("Connection terminated");
 	}
 		
 	//Free the socket pointer
