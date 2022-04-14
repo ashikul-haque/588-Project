@@ -116,24 +116,41 @@ void *connection_handler(void *socket_desc)
     				strncpy(tracker,&client_message[7],2000);
 				if ( fp )
    				{
+   					//tokenize except command
    					char *tracker_tok = strtok(tracker, " ");
-   					int j = 1;
-   					int fileSize;
-   					while(tracker_tok){
-   						if(j==6) fprintf(fp, "%s",tracker_tok);
-   						else fprintf(fp, "%s\n",tracker_tok);
-   						if (j==2) fileSize = atoi(tracker_tok);
-   						tracker_tok = strtok(NULL, " ");
-   						j++;
-   					}
-   					fprintf(fp, "%s\n","0");
-   					fprintf(fp, "%d\n",fileSize);
+   					//copy all tokens
+   					char *fileName = strdup(tracker_tok);
+   					tracker_tok = strtok(NULL, " ");
+   					char *fileSize = strdup(tracker_tok);
+   					tracker_tok = strtok(NULL, " ");
+   					char *desc = strdup(tracker_tok);
+   					tracker_tok = strtok(NULL, " ");
+   					char *md5 = strdup(tracker_tok);
+   					tracker_tok = strtok(NULL, " ");
+   					char *ip = strdup(tracker_tok);
+   					tracker_tok = strtok(NULL, " ");
+   					char *port = strdup(tracker_tok);
+   					port = strtok(port, "\n");
+   					fprintf(fp,"%s %s %s %s\n",fileName,fileSize,md5,desc);
+   					fprintf(fp,"%s %s 0 %s",ip,port,fileSize);
+   					fclose(fp);
+   					FILE *listFP;
+   					char *listName = "list";
+   					if (access( token, F_OK ) == 0 ) {
+						listFP = fopen(listName, "a");
+						fprintf(listFP,"%s %s %s\n",fileName,fileSize,md5);
+					} 
+					else {
+						listFP = fopen(listName, "w");
+						fprintf(listFP,"%s %s %s\n",fileName,fileSize,md5);
+					}
+					fclose(listFP);
     				}
     				else{
     					printf("failed to open file\n");
     					sprintf(temp,"<createtracker fail>");
     				}
-				fclose(fp);
+				
 				sprintf(temp,"<createtracker succ>");
 			}
 			strcat(my_message,temp);
@@ -144,7 +161,66 @@ void *connection_handler(void *socket_desc)
 			
 		}
 		else if(strcmp(tempp, "update") ==0) {
-			
+			puts("update request");
+			//getting file name
+			tempp = strtok(NULL, " ");
+			char *token;
+			char temp[100];
+			token = strtok(tempp, ".");
+			sprintf(token, "%s.track",token);
+			FILE *fp;
+			if( access( token, F_OK ) == 0 ) {
+				fp = fopen(token,"a");
+				char tracker[2000];
+    				strncpy(tracker,&client_message[7],2000);
+    				if ( fp )
+   				{
+   					char *tracker_tok = strtok(tracker, " ");
+   					tracker_tok = strtok(NULL, " ");
+   					char *start_bytes = strdup(tracker_tok);
+   					tracker_tok = strtok(NULL, " ");
+   					char *end_bytes = strdup(tracker_tok);
+   					tracker_tok = strtok(NULL, " ");
+   					char *ip = strdup(tracker_tok);
+   					tracker_tok = strtok(NULL, " ");
+   					char *port = strdup(tracker_tok);
+   					port = strtok(port, "\n");
+   					fprintf(fp,"%s %s %s %s",ip,port,start_bytes,end_bytes);	
+    				}
+    				else{
+    					printf("failed to open file\n");
+    					sprintf(temp,"<updatetracker %s fail>",token);
+    				}
+				fclose(fp);
+				sprintf(temp,"<updatetracker %s succ>",token);
+    				
+			} else {
+				printf("File does not exist\n");
+				sprintf(temp,"<updatetracker %s ferr>",token);
+			}
+			strcat(my_message,temp);
+			write(sock , my_message , strlen(my_message));
+			bzero(client_message, 2000);
+			bzero(my_message, 2000);
+			bzero(file_message, 2000);
+		}
+		else if(strcmp(tempp, "req") ==0) {
+			FILE *fp;
+			char *filename = "list";
+			fp = fopen(filename, "r");
+			char data[2000];
+			char *begin = "<REP LIST X>\n";
+			strcat(my_message,begin);
+			while(fgets(data, 2000, fp) != NULL) {
+				strcat(my_message,data);
+			}
+			char *end = "<REP LIST END>\n";
+			strcat(my_message,end);
+			write(sock , my_message , strlen(my_message));
+			puts("List sent!!");
+			bzero(client_message, 2000);
+			bzero(my_message, 2000);
+			bzero(file_message, 2000);
 		}
 		else if(strcmp(tempp, "get") ==0) {
 			puts("get from server");

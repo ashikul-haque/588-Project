@@ -73,6 +73,13 @@ int main(int argc , char *argv[])
 			recv(socket_desc , server_reply , 2000 , 0);
 			puts(server_reply);
 		}
+		else if(strcmp(tempp, "req") ==0){
+			if(write(socket_desc , my_reply , strlen(my_reply))<0){
+				puts("send failed!!");
+			}
+			recv(socket_desc , server_reply , 2000 , 0);
+			puts(server_reply);
+		}
 		else if(strcmp(tempp, "get") ==0){
 			//puts("get from client");
 			//tempp = strtok(NULL, " ");
