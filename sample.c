@@ -97,33 +97,58 @@ void *connection_handler(void *socket_desc)
 		char *tempp;
 		tempp = strtok(file_message, " ");
 		if(strcmp(tempp, "create") ==0) {
-			//puts("create request");
+			puts("create request");
 			//getting file name
 			tempp = strtok(NULL, " ");
 			//creating tracker file
 			char *token;
+			char temp[100];
 			token = strtok(tempp, ".");
 			sprintf(token, "%s.track",token);
 			FILE *fp;
-			fp = fopen(token,"w");
-			if ( fp )
-   			{
-	   			fputs(client_message,fp);
-    			}
-    			else{
-    				printf("failed to open file\n");
-    			}
-			fclose(fp);
-			char temp[100];
-			sprintf(temp,"Got it %d!!",i++);
+			if( access( token, F_OK ) == 0 ) {
+				printf("File already exists\n");
+    				sprintf(temp,"<createtracker ferr>");
+    				
+			} else {
+    				fp = fopen(token,"w");
+    				char tracker[2000];
+    				strncpy(tracker,&client_message[7],2000);
+				if ( fp )
+   				{
+   					char *tracker_tok = strtok(tracker, " ");
+   					int j = 1;
+   					int fileSize;
+   					while(tracker_tok){
+   						if(j==6) fprintf(fp, "%s",tracker_tok);
+   						else fprintf(fp, "%s\n",tracker_tok);
+   						if (j==2) fileSize = atoi(tracker_tok);
+   						tracker_tok = strtok(NULL, " ");
+   						j++;
+   					}
+   					fprintf(fp, "%s\n","0");
+   					fprintf(fp, "%d\n",fileSize);
+    				}
+    				else{
+    					printf("failed to open file\n");
+    					sprintf(temp,"<createtracker fail>");
+    				}
+				fclose(fp);
+				sprintf(temp,"<createtracker succ>");
+			}
 			strcat(my_message,temp);
 			write(sock , my_message , strlen(my_message));
 			bzero(client_message, 2000);
 			bzero(my_message, 2000);
-			bzero(file_message, 2000);
+			bzero(file_message, 2000);		
+			
 		}
-		if(strcmp(tempp, "get") ==0) {
+		else if(strcmp(tempp, "update") ==0) {
+			
+		}
+		else if(strcmp(tempp, "get") ==0) {
 			puts("get from server");
+			tempp = strtok(NULL, " ");
 			FILE *fp;
 			char *filename = "1.pdf";
 			fp = fopen(filename, "r");

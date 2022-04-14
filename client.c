@@ -53,17 +53,29 @@ int main(int argc , char *argv[])
 		strcat(file_message, my_reply);
 		char *tempp;
 		tempp = strtok(file_message, " ");
-		puts(tempp);
+		//puts(tempp);
 		if(strcmp(tempp, "create") == 0) {
-			puts("create from client");
+			//puts("create from client");
+			//get file size using file name
+			//give description as description
+			//give md5 from function
+			//ip and port from config file
 			if(write(socket_desc , my_reply , strlen(my_reply))<0){
-				puts("failed!!");
+				puts("send failed!!");
+			}
+			recv(socket_desc , server_reply , 2000 , 0);
+			puts(server_reply);
+		}
+		else if(strcmp(tempp, "update") ==0){
+			if(write(socket_desc , my_reply , strlen(my_reply))<0){
+				puts("send failed!!");
 			}
 			recv(socket_desc , server_reply , 2000 , 0);
 			puts(server_reply);
 		}
 		else if(strcmp(tempp, "get") ==0){
-			puts("get from client");
+			//puts("get from client");
+			//tempp = strtok(NULL, " ");
 			int n;
   			FILE *fp;
   			char *filename = "2.pdf";
@@ -84,32 +96,17 @@ int main(int argc , char *argv[])
     				printf("%d->",++i);
   			}
   			fclose(fp);
+  			//after getting the tracker file from server
+  			//check tracker file and send download request to peers
+  			//asking for chunks
   			printf("\n");
   			puts("download complete");
   		}
+  		
   		bzero(my_reply, 2000);
 		bzero(server_reply, 2000);
 		bzero(file_message, 2000);
 	}
-	//Send some data
-	/*char temp[100];
-	sprintf(temp,"Hello from client%d",id);
-	printf("%s\n",temp);
-	strcat(my_reply, temp);
-	if( send(socket_desc , my_reply , strlen(my_reply) , 0) < 0)
-	{
-		puts("Send failed");
-		return 1;
-	}
-	puts("Data Send\n");
-	
-	//Receive a reply from the server
-	if( recv(socket_desc, server_reply , 2000 , 0) < 0)
-	{
-		puts("recv failed");
-	}
-	puts("Reply received\n");
-	puts(server_reply);*/
 	
 	return 0;
 }
