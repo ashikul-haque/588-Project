@@ -132,7 +132,7 @@ void *connection_handler(void *socket_desc)
    					char *port = strdup(tracker_tok);
    					port = strtok(port, "\n");
    					fprintf(fp,"%s %s %s %s\n",fileName,fileSize,md5,desc);
-   					fprintf(fp,"%s %s 0 %s",ip,port,fileSize);
+   					fprintf(fp,"%s %s 0 %s\n",ip,port,fileSize);
    					fclose(fp);
    					FILE *listFP;
    					char *listName = "list";
@@ -161,6 +161,7 @@ void *connection_handler(void *socket_desc)
 			
 		}
 		else if(strcmp(tempp, "update") ==0) {
+			//need to update existing ip information
 			puts("update request");
 			//getting file name
 			tempp = strtok(NULL, " ");
@@ -185,7 +186,7 @@ void *connection_handler(void *socket_desc)
    					tracker_tok = strtok(NULL, " ");
    					char *port = strdup(tracker_tok);
    					port = strtok(port, "\n");
-   					fprintf(fp,"%s %s %s %s",ip,port,start_bytes,end_bytes);	
+   					fprintf(fp,"%s %s %s %s\n",ip,port,start_bytes,end_bytes);	
     				}
     				else{
     					printf("failed to open file\n");

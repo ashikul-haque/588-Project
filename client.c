@@ -22,8 +22,8 @@ int main(int argc , char *argv[])
 		printf("Could not create socket");
 	}
 		
-	server.sin_addr.s_addr = inet_addr("127.0.0.1");
-	//server.sin_addr.s_addr = inet_addr("192.168.31.37");
+	//server.sin_addr.s_addr = inet_addr("127.0.0.1");
+	server.sin_addr.s_addr = inet_addr("192.168.31.37");
 	server.sin_family = AF_INET;
 	server.sin_port = htons( 7658 );
 
@@ -85,7 +85,7 @@ int main(int argc , char *argv[])
 			//tempp = strtok(NULL, " ");
 			int n;
   			FILE *fp;
-  			char *filename = "./download/2.pdf";
+  			char *filename = "./download/2.txt";
   			char buffer[SIZE];
   			fp = fopen(filename, "w");
 			int i=0;
