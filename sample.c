@@ -4,8 +4,10 @@
 #include<sys/socket.h>
 #include<arpa/inet.h>	//inet_addr
 #include<unistd.h>	//write
-
+#include <sys/stat.h>
+#include <fcntl.h>
 #include<pthread.h> //for threading , link with lpthread
+
 #define SIZE 1024
 
 void *connection_handler(void *);
@@ -100,12 +102,15 @@ void *connection_handler(void *socket_desc)
 			puts("create request");
 			//getting file name
 			tempp = strtok(NULL, " ");
+			
 			//creating tracker file
 			char *token;
 			char temp[100];
 			token = strtok(tempp, ".");
 			sprintf(token, "%s.track",token);
 			FILE *fp;
+			
+			//checking if tracker already exists or not
 			if( access( token, F_OK ) == 0 ) {
 				printf("File already exists\n");
     				sprintf(temp,"<createtracker ferr>");
@@ -118,6 +123,7 @@ void *connection_handler(void *socket_desc)
    				{
    					//tokenize except command
    					char *tracker_tok = strtok(tracker, " ");
+   					
    					//copy all tokens
    					char *fileName = strdup(tracker_tok);
    					tracker_tok = strtok(NULL, " ");
@@ -132,7 +138,7 @@ void *connection_handler(void *socket_desc)
    					char *port = strdup(tracker_tok);
    					port = strtok(port, "\n");
    					fprintf(fp,"%s %s %s %s\n",fileName,fileSize,md5,desc);
-   					fprintf(fp,"%s %s 0 %s\n",ip,port,fileSize);
+   					fprintf(fp,"%s %s0 %s\n",ip,port,fileSize);
    					fclose(fp);
    					FILE *listFP;
    					char *listName = "list";
@@ -186,7 +192,9 @@ void *connection_handler(void *socket_desc)
    					tracker_tok = strtok(NULL, " ");
    					char *port = strdup(tracker_tok);
    					port = strtok(port, "\n");
-   					fprintf(fp,"%s %s %s %s\n",ip,port,start_bytes,end_bytes);	
+   					
+   					//printf("%s %s %s %s\n",ip,port,start_bytes,end_bytes);
+   					fprintf(fp,"%s %s\n%s %s",ip,port, start_bytes,end_bytes);
     				}
     				else{
     					printf("failed to open file\n");
@@ -233,25 +241,30 @@ void *connection_handler(void *socket_desc)
 			
 			if( access( tempp, F_OK ) == 0 ) {
 				fp = fopen(tempp, "r");
-  				char data[SIZE] = {0};
+				struct stat s;
+				//strcat(my_message,s.st_size);
+				//write(sock , my_message , strlen(my_message));
+				//printf("File size %ld sent!!\n",s.st_size);
+  				char data[SIZE];
   				int i = 0;
-  				while(fgets(data, SIZE, fp) != NULL) {
-    					if (write(sock, data, sizeof(data)) < 0) {
-      						perror("[-]Error in sending file.");
-      						exit(1);
-    					}
-    					printf("%d->",++i);	
-    					bzero(data, SIZE);
+  				bzero(data, SIZE);
+  				int bs = fread(data, 1, sizeof(data), fp);
+  				while(!feof(fp)) {
+  					i=i+1;
+    					write(sock, data, bs);
+    					//bzero(data, SIZE);
+    					bs = fread(data, 1, sizeof(data), fp);
+    					//printf("%d->",i);	
   				}
   				printf("\n");
-  				puts("upload complete!!");
+  				char end[50];
+  				sprintf(end,"%d bytes sent",i);
+  				puts(end);
   				close(sock);	
 			} else{
 				printf("failed to open file\n");
-				close(sock);
-				
+				close(sock);	
 			}
-			
 		}
 		
 	}
