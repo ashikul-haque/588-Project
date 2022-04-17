@@ -121,7 +121,7 @@ void *clientThread(void *ip_port){
 		tempp = strtok(file_message, " ");
 		//puts(tempp);
 		if(strcmp(tempp, "create") == 0) {
-			//puts("create from client");
+			puts("create from client");
 			
 			//get file name
 			tempp = strtok(NULL, " ");
@@ -159,10 +159,10 @@ void *clientThread(void *ip_port){
 		}
 		else if(strcmp(tempp, "get") ==0){
 			//puts("get from client");
-			//tempp = strtok(NULL, " ");
+			tempp = strtok(NULL, " ");
 			int n;
   			FILE *fp;
-  			char *filename = "./download/dummy.txt";
+  			char *filename = strdup(tempp);
   			char buffer[SIZE];
   			fp = fopen(filename, "w");
 			int i=0;
@@ -374,11 +374,13 @@ int main(int argc , char *argv[])
 			tempp = strtok(NULL, " ");
 			sprintf(ip_port->port,"%s", tempp);
 			
-			pthread_t tracker_server;
+			int res = *(int *)clientThread((void *) ip_port);
+			
+			/*pthread_t tracker_server;
 			if(pthread_create(&peer_server, NULL, clientThread, (void *) ip_port) < 0) {
     				perror("Could not create server send thread");
     				return -1;
-  			}
+  			}*/
   			//free(ip_port);
 			//printf("Disconnected from %s:%s\n",ip,port);
 		}
