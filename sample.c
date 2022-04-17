@@ -12,8 +12,19 @@
 
 void *connection_handler(void *);
 
+void *trackerServer(void *);
+
 int main(int argc , char *argv[])
 {
+	trackerServer(NULL);
+	return 0;
+}
+
+/*
+ * This will handle connection for each client
+ * */
+
+void *trackerServer(void *unused){
 	int socket_desc , new_socket , c , *new_sock;
 	struct sockaddr_in server , client;
 	char *message;
@@ -22,7 +33,8 @@ int main(int argc , char *argv[])
 	socket_desc = socket(AF_INET , SOCK_STREAM , 0);
 	if (socket_desc == -1)
 	{
-		printf("Could not create socket");
+		puts("Could not create socket");
+		exit(1);
 	}
 	
 	//Prepare the sockaddr_in structure
@@ -34,7 +46,7 @@ int main(int argc , char *argv[])
 	if( bind(socket_desc,(struct sockaddr *)&server , sizeof(server)) < 0)
 	{
 		puts("bind failed");
-		return 1;
+		exit(1);
 	}
 	puts("bind done");
 	
@@ -59,7 +71,7 @@ int main(int argc , char *argv[])
 		if( pthread_create( &sniffer_thread , NULL ,  connection_handler , (void*) new_sock) < 0)
 		{
 			perror("could not create thread");
-			return 1;
+			exit(1);
 		}
 		
 		//Now join the thread , so that we dont terminate before the thread
@@ -70,15 +82,12 @@ int main(int argc , char *argv[])
 	if (new_socket<0)
 	{
 		perror("accept failed");
-		return 1;
+		exit(1);
 	}
+	exit(0);
 	
-	return 0;
-}
-
-/*
- * This will handle connection for each client
- * */
+} 
+ 
 void *connection_handler(void *socket_desc)
 {
 	//Get the socket descriptor
@@ -265,6 +274,9 @@ void *connection_handler(void *socket_desc)
 				printf("failed to open file\n");
 				close(sock);	
 			}
+			/*bzero(client_message, 2000);
+			bzero(my_message, 2000);
+			bzero(file_message, 2000);*/
 		}
 		
 	}
