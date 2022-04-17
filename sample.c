@@ -87,6 +87,49 @@ void *trackerServer(void *unused){
 	exit(0);
 	
 } 
+
+int getLine(FILE * fp, char *ip, char *port) {
+	char *line;
+	size_t len = 0;
+    	ssize_t read;
+    	int i = 1;
+	while((read = getline(&line, &len, fp)) != -1) {
+		
+		char ip_port[100];
+		sprintf(ip_port,"%s %s\n",ip, port); 
+		
+		if(strcmp(ip_port, line) == 0) {
+			return i;
+		}
+		bzero(line, read);
+		i++;
+	}
+	fclose(fp);
+	return 0;
+}
+
+void replaceLine(FILE * fp, char *fileName, int lineNo, char *start, char *end) {
+	char *line;
+	size_t len = 0;
+    	ssize_t read;
+    	int i = 1;
+    	printf("%d\n",lineNo);
+    	FILE * nfp = fopen("temp.txt","w");
+	while((read = getline(&line, &len, fp)) != -1) {
+		puts(line);
+		if(i==lineNo) {
+			fprintf(nfp, "%s %s\n", start, end);
+		}
+		else {
+			fprintf(nfp, "%s", line);
+		}
+		i++;
+	}
+	fclose(fp);
+	fclose(nfp);
+	remove(fileName);
+    	rename("temp.txt",fileName);
+}
  
 void *connection_handler(void *socket_desc)
 {
@@ -146,8 +189,9 @@ void *connection_handler(void *socket_desc)
    					tracker_tok = strtok(NULL, " ");
    					char *port = strdup(tracker_tok);
    					port = strtok(port, "\n");
+   					port = strtok(port, "\r");
    					fprintf(fp,"%s %s %s %s\n",fileName,fileSize,md5,desc);
-   					fprintf(fp,"%s %s0 %s\n",ip,port,fileSize);
+   					fprintf(fp,"%s %s\n0 %s\n",ip,port,fileSize);
    					fclose(fp);
    					FILE *listFP;
    					char *listName = "list";
@@ -186,7 +230,7 @@ void *connection_handler(void *socket_desc)
 			sprintf(token, "%s.track",token);
 			FILE *fp;
 			if( access( token, F_OK ) == 0 ) {
-				fp = fopen(token,"a");
+				fp = fopen(token,"a+");
 				char tracker[2000];
     				strncpy(tracker,&client_message[7],2000);
     				if ( fp )
@@ -201,15 +245,27 @@ void *connection_handler(void *socket_desc)
    					tracker_tok = strtok(NULL, " ");
    					char *port = strdup(tracker_tok);
    					port = strtok(port, "\n");
+   					port = strtok(port, "\r");
    					
-   					//printf("%s %s %s %s\n",ip,port,start_bytes,end_bytes);
-   					fprintf(fp,"%s %s\n%s %s",ip,port, start_bytes,end_bytes);
+   					//already exisitng ip port check
+   					int lineCount = getLine(fp, ip, port);
+   					if (lineCount == 0) {
+   						fp = fopen(token,"a");
+   						fprintf(fp,"%s %s\n%s %s\n",ip,port, start_bytes,end_bytes);
+   						fclose(fp);
+   					}
+   					else {
+   						fp = fopen(token,"r");
+   						replaceLine(fp, token, lineCount+1, start_bytes, end_bytes);
+   					}		
+   					
+   					
+   					
     				}
     				else{
     					printf("failed to open file\n");
     					sprintf(temp,"<updatetracker %s fail>",token);
     				}
-				fclose(fp);
 				sprintf(temp,"<updatetracker %s succ>",token);
     				
 			} else {

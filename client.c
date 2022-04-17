@@ -69,6 +69,15 @@ char * getConf(){
 	return result;
 }
 
+int getPort(){
+	char *ip_port = getConf();
+	char *token = strtok(ip_port," ");
+	token = strtok(NULL," ");
+	//puts(token);
+	int port = atoi(token);
+	return port;
+}
+
 //function to handle communication with tracker_server and other peers as client
 void clientThread(char* ip, char*port){
 
@@ -280,7 +289,7 @@ void *peerServer(void *unused){
 	//Prepare the sockaddr_in structure
 	server.sin_family = AF_INET;
 	server.sin_addr.s_addr = INADDR_ANY;
-	server.sin_port = htons( 4200 );
+	server.sin_port = htons( getPort() );
 	
 	//Bind
 	if( bind(socket_desc,(struct sockaddr *)&server , sizeof(server)) < 0)
@@ -363,6 +372,7 @@ int main(int argc , char *argv[])
 			sprintf(port,"%s", tempp);
 			
 			clientThread(ip,port);
+			printf("Disconnected from %s:%s\n",ip,port);
 		}
 		if(strcmp(tempp, "quit") == 10) {
 			exit(1);
