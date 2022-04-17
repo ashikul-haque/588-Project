@@ -11,7 +11,10 @@
 
 #define SIZE 1024
 
-int connected;
+struct ipPort{
+	char ip[30];
+	char port[20];
+};
 
 off_t fsize(const char *filename) {
     struct stat st; 
@@ -79,8 +82,9 @@ int getPort(){
 }
 
 //function to handle communication with tracker_server and other peers as client
-void clientThread(char* ip, char*port){
-
+void *clientThread(void *ip_port){
+	
+	struct ipPort ip_ports = *(struct ipPort*)ip_port;
 	int socket_desc;
 	struct sockaddr_in server;
 	char *message , server_reply[2000], my_reply[2000], input[2000],file_message[2000];
@@ -94,9 +98,9 @@ void clientThread(char* ip, char*port){
 	}
 		
 	//server.sin_addr.s_addr = inet_addr("127.0.0.1");
-	server.sin_addr.s_addr = inet_addr(ip);
+	server.sin_addr.s_addr = inet_addr(ip_ports.ip);
 	server.sin_family = AF_INET;
-	server.sin_port = htons( atoi(port) );
+	server.sin_port = htons( atoi(ip_ports.port) );
 
 	//Connect to remote server
 	if (connect(socket_desc , (struct sockaddr *)&server , sizeof(server)) < 0)
@@ -189,7 +193,7 @@ void clientThread(char* ip, char*port){
   		}
   		
   		else if(strcmp(tempp, "quit") == 10) {
-			return;
+			return 0;
 		}
   		
   		bzero(my_reply, 2000);
@@ -197,7 +201,7 @@ void clientThread(char* ip, char*port){
 		bzero(input, 2000);
 		bzero(file_message, 2000);
 	}
-	return;
+	return 0;
 }
 
 void *connection_handler(void *socket_desc)
@@ -361,21 +365,25 @@ int main(int argc , char *argv[])
 		tempp = strtok(file_message, " ");
 		//puts(tempp);
 		if(strcmp(tempp, "connect") == 0) {
+			struct ipPort *ip_port = malloc(sizeof(struct ipPort));
 			//get ip
 			tempp = strtok(NULL, " ");
-			char ip[50];
-			sprintf(ip,"%s", tempp);
+			sprintf(ip_port->ip,"%s", tempp);
 			
 			//get port
 			tempp = strtok(NULL, " ");
-			char port[20];
-			sprintf(port,"%s", tempp);
+			sprintf(ip_port->port,"%s", tempp);
 			
-			clientThread(ip,port);
-			printf("Disconnected from %s:%s\n",ip,port);
+			pthread_t tracker_server;
+			if(pthread_create(&peer_server, NULL, clientThread, (void *) ip_port) < 0) {
+    				perror("Could not create server send thread");
+    				return -1;
+  			}
+  			//free(ip_port);
+			//printf("Disconnected from %s:%s\n",ip,port);
 		}
 		if(strcmp(tempp, "quit") == 10) {
-			exit(1);
+			exit(0);
 		}
   	}
 	
