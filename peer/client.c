@@ -81,14 +81,11 @@ int getPort(){
 	return port;
 }
 
-//function to handle communication with tracker_server and other peers as client
-void *clientThread(void *ip_port){
-	
-	struct ipPort ip_ports = *(struct ipPort*)ip_port;
-	int socket_desc;
+void *downloadHandler(void *fileName);
+
+int getClientSocket(struct ipPort ip_ports) {
 	struct sockaddr_in server;
-	char *message , server_reply[2000], my_reply[2000], input[2000],file_message[2000];
-	int read_size;
+	int socket_desc;
 	
 	//Create socket
 	socket_desc = socket(AF_INET , SOCK_STREAM , 0);
@@ -101,7 +98,7 @@ void *clientThread(void *ip_port){
 	server.sin_addr.s_addr = inet_addr(ip_ports.ip);
 	server.sin_family = AF_INET;
 	server.sin_port = htons( atoi(ip_ports.port) );
-
+	
 	//Connect to remote server
 	if (connect(socket_desc , (struct sockaddr *)&server , sizeof(server)) < 0)
 	{
@@ -110,6 +107,19 @@ void *clientThread(void *ip_port){
 	}
 	
 	puts("Connected\n");
+	
+	return socket_desc;
+}
+
+//function to handle communication with tracker_server and other peers as client
+void *clientThread(void *ip_port){
+	
+	struct ipPort ip_ports = *(struct ipPort*)ip_port;
+	int socket_desc = getClientSocket(ip_ports);
+	//struct sockaddr_in server;
+	
+	char *message , server_reply[2000], my_reply[2000], input[2000],file_message[2000];
+	int read_size;
 	
 	bzero(my_reply, 2000);
 	bzero(server_reply, 2000);
@@ -158,7 +168,7 @@ void *clientThread(void *ip_port){
 			puts(server_reply);
 		}
 		else if(strcmp(tempp, "get") ==0){
-			//puts("get from client");
+			puts("get from client");
 			tempp = strtok(NULL, " ");
 			int n;
   			FILE *fp;
@@ -188,8 +198,12 @@ void *clientThread(void *ip_port){
   			//asking for chunks
   			printf("\n");
   			char end[50];
-  			sprintf(end,"%d bytes received",i);
+  			//sprintf(end,"%d bytes received",i);
+  			sprintf(end,"%s tracker received",filename);
   			puts(end);
+  			
+  			//reconnect to tracker
+  			socket_desc = getClientSocket(ip_ports);
   		}
   		
   		else if(strcmp(tempp, "quit") == 10) {
