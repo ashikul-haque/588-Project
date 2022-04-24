@@ -8,8 +8,9 @@
 #include <fcntl.h>
 #include <openssl/md5.h>
 #include<pthread.h>
+#include <time.h>
 
-#define SIZE 4096
+#define SIZE 10240
 
 struct ipPort{
 	char ip[30];
@@ -127,6 +128,7 @@ void *downloadHandler(void *trackerName){
 	int listSize = 0;
 	char* fileName;
 	long fileSize;
+	char* md5;
 	char *trackerFileName = strdup((char *) trackerName);
 	int socket_desc;
 	
@@ -143,6 +145,9 @@ void *downloadHandler(void *trackerName){
 			fileName = strdup(token);
 			token = strtok(NULL, " ");
 			fileSize = atol(token);
+			token = strtok(NULL, " ");
+			md5 = strdup(token);
+			
 		}
 		else if(i!=1 && i%2==0) {
 			char *token = strtok(line, " ");
@@ -193,6 +198,7 @@ void *downloadHandler(void *trackerName){
 	long rcvBytes = 0;
 	int currPeer=0;
 	FILE *nfp = fopen(fileName,"w");
+	int c = 0;
 	
 	while(rcvBytes <= fileSize) {
 		
@@ -231,22 +237,22 @@ void *downloadHandler(void *trackerName){
 			end_t = peerList[currPeer].end;
 		}*/
 		
-		printf("Current peer %d\n",currPeer);
-		printf("%ld %ld %ld\n",start_t,end_t,fileSize);
+		//printf("Current peer %d\n",currPeer);
+		//printf("%ld %ld %ld\n",start_t,end_t,fileSize);
 		
 		sprintf(ip_ports.ip,"%s",peerList[currPeer].ip);
 		sprintf(ip_ports.port,"%s",peerList[currPeer].port);
 		int socket_desc = peerList[currPeer].socket;
 		
 		sprintf(my_reply,"get %s %ld %ld",fileName, start_t, end_t);
-		puts("Sending get request");
+		//puts("Sending get request");
 		if(write(socket_desc , my_reply, strlen(my_reply))<0){
 			puts("get failed!!");
 		}
 		
 		int n;
 		n = recv(socket_desc, buffer, SIZE, 0);
-		printf("Received %d bytes\n",n);
+		//printf("Received %d bytes\n",n);
     		if (n <= 0){
     			puts("Retry");
     			bzero(my_reply, 2000);
@@ -256,11 +262,20 @@ void *downloadHandler(void *trackerName){
     		}
 		
 		fwrite(buffer, 1, n, nfp);
-		puts("wrote in file\n");
+		//puts("wrote in file\n");
 		bzero(my_reply, 2000);
 		bzero(buffer, SIZE);
 		
 		if(end_t == fileSize){
+			//check md5
+			if(strcmp(calculate_file_md5(fileName),md5) == 0){
+				puts("md5 check done. Received Correctly");
+			}
+			else{
+				printf("md5: %s\nreceived md5: %s\n",md5, calculate_file_md5(fileName));
+				puts("md5 check done. Not received Correctly");
+			}
+			
 			fclose(nfp);
 			for(int j=0;j<listSize;j++){
 				close(peerList[j].socket);
@@ -269,7 +284,7 @@ void *downloadHandler(void *trackerName){
 			sprintf(ip_ports.ip,"127.0.0.1");
 			sprintf(ip_ports.port,"7658");
 			
-			puts("updating tracker");
+			puts("Updating tracker");
 			socket_desc = getClientSocket(ip_ports);
 			sprintf(my_reply,"update %s 0 %ld %s",fileName, end_t, getConf());
 			if(write(socket_desc , my_reply, strlen(my_reply))<0){
@@ -281,23 +296,29 @@ void *downloadHandler(void *trackerName){
 		}
 		rcvBytes = end_t+1;
 		currPeer++;
-		/*if(currPeer == listSize || end_t == fileSize){
-			//update tracker information in tracker server
-			sprintf(ip_ports.ip,"127.0.0.1");
-			sprintf(ip_ports.ip,"7658");
+		
+		if(currPeer == listSize){
+			currPeer = 0;
+		}
+		
+		
+  		//printf("%d\n",msec);
+  		if( c == 2000) {
+  			sprintf(ip_ports.ip,"127.0.0.1");
+			sprintf(ip_ports.port,"7658");
 			
-			int socket_desc = getClientSocket(ip_ports);
+			//puts("Updating tracker");
+			socket_desc = getClientSocket(ip_ports);
 			sprintf(my_reply,"update %s 0 %ld %s",fileName, end_t, getConf());
 			if(write(socket_desc , my_reply, strlen(my_reply))<0){
 				puts("update failed!!");
 			}
 			close(socket_desc);
-		}*/
-		if(currPeer == listSize){
-			currPeer = 0;
-		}
+			
+			c=-1;
+  		}
+  		c++;
 	}
-	//printf("Download completed for %s",fileName);
 }
 
 //function to handle communication with tracker_server and other peers as client
@@ -442,7 +463,7 @@ void *connection_handler(void *socket_desc)
 		char *tempp;
 		tempp = strtok(file_message, " ");
 		if(strcmp(tempp, "get") ==0) {
-			puts("get from peer server");
+			//puts("get from peer server");
 			tempp = strtok(NULL, " ");
 			//tempp = strtok(tempp, "\n");
 			char *fileName = strdup(tempp);
@@ -478,10 +499,10 @@ void *connection_handler(void *socket_desc)
     					i++;	
   				}
   				
-  				printf("\n");
+  				//printf("\n");
   				char end[50];
-  				sprintf(end,"%ld bytes sent",i);
-  				puts(end);	
+  				//sprintf(end,"%ld bytes sent",i);
+  				//puts(end);	
   				fclose(fp);
 			} else{
 				printf("File not found\n");

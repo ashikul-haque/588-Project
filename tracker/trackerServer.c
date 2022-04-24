@@ -8,7 +8,7 @@
 #include <fcntl.h>
 #include<pthread.h> //for threading , link with lpthread
 
-#define SIZE 4096
+#define SIZE 10240
 
 void *connection_handler(void *);
 
