@@ -10,7 +10,7 @@
 #include<pthread.h>
 #include <time.h>
 
-#define SIZE 10240
+#define SIZE 1024
 
 struct ipPort{
 	char ip[30];
@@ -267,6 +267,8 @@ void *downloadHandler(void *trackerName){
 		bzero(buffer, SIZE);
 		
 		if(end_t == fileSize){
+			fclose(nfp);
+			
 			//check md5
 			if(strcmp(calculate_file_md5(fileName),md5) == 0){
 				puts("md5 check done. Received Correctly");
@@ -276,7 +278,6 @@ void *downloadHandler(void *trackerName){
 				puts("md5 check done. Not received Correctly");
 			}
 			
-			fclose(nfp);
 			for(int j=0;j<listSize;j++){
 				close(peerList[j].socket);
 			}
@@ -294,7 +295,7 @@ void *downloadHandler(void *trackerName){
 			
 			return 0;
 		}
-		rcvBytes = end_t+1;
+		rcvBytes = end_t;
 		currPeer++;
 		
 		if(currPeer == listSize){
@@ -495,10 +496,10 @@ void *connection_handler(void *socket_desc)
 					}
     					
     					bzero(data, SIZE);
-    					i+=SIZE;
-    					i++;	
+    					i+=SIZE;	
   				}
   				
+  				//puts(calculate_file_md5(fileName));
   				//printf("\n");
   				char end[50];
   				//sprintf(end,"%ld bytes sent",i);
