@@ -90,7 +90,7 @@ int getPort(){
 typedef struct peerInfo {
 	char ip[32];
 	char port[20];
-	int socket;
+	int socket, flag;
 	long start, end;
 } peerInfo;
 
@@ -195,13 +195,12 @@ void *downloadHandler(void *trackerName){
 	FILE *nfp = fopen(fileName,"w");
 	
 	while(rcvBytes <= fileSize) {
-		printf("Current peer %d\n",currPeer);
+		
 		long start_t = rcvBytes;
 		long end_t = start_t+SIZE;
 		if(end_t > fileSize) {
 			end_t = fileSize;
 		}
-		printf("%ld %ld %ld\n",start_t,end_t,fileSize);
 		
 		struct ipPort ip_ports;
 		
@@ -216,10 +215,24 @@ void *downloadHandler(void *trackerName){
 				t--;
 			}
 		}
-
-		if(peerList[currPeer].end < end_t){
-			end_t = peerList[currPeer].end;
+		
+		if(peerList[currPeer].end < end_t) {
+			int t = 0;
+			while(t<listSize) {
+				if(peerList[t].end >= end_t && peerList[t].start <= start_t){
+					currPeer = t;
+					break;
+				}
+				t++;
+			}
 		}
+
+		/*if(peerList[currPeer].end < end_t){
+			end_t = peerList[currPeer].end;
+		}*/
+		
+		printf("Current peer %d\n",currPeer);
+		printf("%ld %ld %ld\n",start_t,end_t,fileSize);
 		
 		sprintf(ip_ports.ip,"%s",peerList[currPeer].ip);
 		sprintf(ip_ports.port,"%s",peerList[currPeer].port);
@@ -253,6 +266,17 @@ void *downloadHandler(void *trackerName){
 				close(peerList[j].socket);
 			}
 			printf("Download completed for %s\n",fileName);
+			sprintf(ip_ports.ip,"127.0.0.1");
+			sprintf(ip_ports.port,"7658");
+			
+			puts("updating tracker");
+			socket_desc = getClientSocket(ip_ports);
+			sprintf(my_reply,"update %s 0 %ld %s",fileName, end_t, getConf());
+			if(write(socket_desc , my_reply, strlen(my_reply))<0){
+				puts("update failed!!");
+			}
+			close(socket_desc);
+			
 			return 0;
 		}
 		rcvBytes = end_t+1;
@@ -445,7 +469,7 @@ void *connection_handler(void *socket_desc)
   					bs = fread(data, 1, sizeof(data), fp);
 					if(i==start_t){
 						write(sock, data, bs);
-						printf("[LOOP] %d bytes sent\n",bs);
+						//printf("[LOOP] %d bytes sent\n",bs);
 						break;
 					}
     					
