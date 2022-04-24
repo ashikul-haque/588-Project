@@ -9,7 +9,7 @@
 #include <openssl/md5.h>
 #include<pthread.h>
 
-#define SIZE 1024
+#define SIZE 4096
 
 struct ipPort{
 	char ip[30];
@@ -72,6 +72,12 @@ char * getConf(){
 	return result;
 }
 
+char * getIP(){
+	char *ip_port = getConf();
+	char *token = strtok(ip_port," ");
+	return token;
+}
+
 int getPort(){
 	char *ip_port = getConf();
 	char *token = strtok(ip_port," ");
@@ -81,7 +87,12 @@ int getPort(){
 	return port;
 }
 
-void *downloadHandler(void *fileName);
+typedef struct peerInfo {
+	char ip[32];
+	char port[20];
+	int socket;
+	long start, end;
+} peerInfo;
 
 int getClientSocket(struct ipPort ip_ports) {
 	struct sockaddr_in server;
@@ -106,13 +117,167 @@ int getClientSocket(struct ipPort ip_ports) {
 		exit(0);
 	}
 	
-	puts("Connected\n");
+	puts("Connected");
 	
 	return socket_desc;
 }
 
+void *downloadHandler(void *trackerName){
+	peerInfo peerList[100];
+	int listSize = 0;
+	char* fileName;
+	long fileSize;
+	char *trackerFileName = strdup((char *) trackerName);
+	int socket_desc;
+	
+	//getting peer info from tracker file
+	FILE *fp = fopen(trackerFileName, "r");
+	char *line;
+	size_t len = 0;
+    	ssize_t read;
+    	int i = 1;
+	while((read = getline(&line, &len, fp)) != -1) {
+		//getting filename and size from first line
+		if(i==1) {
+			char *token = strtok(line, " ");
+			fileName = strdup(token);
+			token = strtok(NULL, " ");
+			fileSize = atol(token);
+		}
+		else if(i!=1 && i%2==0) {
+			char *token = strtok(line, " ");
+			//peerList[listSize].ip = token;
+			sprintf(peerList[listSize].ip,"%s",token);
+			token = strtok(NULL, " ");
+			//peerList[listSize].port = token;
+			sprintf(peerList[listSize].port,"%s",token);
+			
+			struct ipPort ip_ports;
+			sprintf(ip_ports.ip,"%s",peerList[listSize].ip);
+			sprintf(ip_ports.port,"%s",peerList[listSize].port);
+			
+			int socket = getClientSocket(ip_ports);
+			peerList[listSize].socket = socket;
+		}
+		else if(i!=1 && i%2==1) {
+			char *token = strtok(line, " ");
+			peerList[listSize].start = atol(token);
+			token = strtok(NULL, " ");
+			peerList[listSize].end = atol(token);
+			listSize++;
+		}
+		i++;
+	}
+	
+	fclose(fp);
+	
+	//sort peers according to their start byte
+	for(int j=0;j<listSize;j++){
+		for(int k=j+1;k<listSize;k++){
+			peerInfo temp;
+			if(peerList[k].start < peerList[j].start) {
+				temp = peerList[j];
+				peerList[j] = peerList[k];
+				peerList[k] = temp;
+			}
+		}
+	}
+	
+	//printf("list size %d\n",listSize);
+	//printf("%s %s %ld %ld\n", peerList[0].ip, peerList[0].port, peerList[0].start, peerList[0].end);
+	
+	char my_reply[2000];
+	char buffer[SIZE];
+	bzero(my_reply, 2000);
+	bzero(buffer, SIZE);
+	long rcvBytes = 0;
+	int currPeer=0;
+	FILE *nfp = fopen(fileName,"w");
+	
+	while(rcvBytes <= fileSize) {
+		printf("Current peer %d\n",currPeer);
+		long start_t = rcvBytes;
+		long end_t = start_t+SIZE;
+		if(end_t > fileSize) {
+			end_t = fileSize;
+		}
+		printf("%ld %ld %ld\n",start_t,end_t,fileSize);
+		
+		struct ipPort ip_ports;
+		
+		//find ip port suitable for next download
+		if(peerList[currPeer].start > start_t) {
+			int t = currPeer-1;
+			while(t>=0) {
+				if(peerList[t].start <= start_t){
+					currPeer = t;
+					break;
+				}
+				t--;
+			}
+		}
+
+		if(peerList[currPeer].end < end_t){
+			end_t = peerList[currPeer].end;
+		}
+		
+		sprintf(ip_ports.ip,"%s",peerList[currPeer].ip);
+		sprintf(ip_ports.port,"%s",peerList[currPeer].port);
+		int socket_desc = peerList[currPeer].socket;
+		
+		sprintf(my_reply,"get %s %ld %ld",fileName, start_t, end_t);
+		puts("Sending get request");
+		if(write(socket_desc , my_reply, strlen(my_reply))<0){
+			puts("get failed!!");
+		}
+		
+		int n;
+		n = recv(socket_desc, buffer, SIZE, 0);
+		printf("Received %d bytes\n",n);
+    		if (n <= 0){
+    			puts("Retry");
+    			bzero(my_reply, 2000);
+			bzero(buffer, SIZE);
+			rcvBytes = start_t;
+      			continue;
+    		}
+		
+		fwrite(buffer, 1, n, nfp);
+		puts("wrote in file\n");
+		bzero(my_reply, 2000);
+		bzero(buffer, SIZE);
+		
+		if(end_t == fileSize){
+			fclose(nfp);
+			for(int j=0;j<listSize;j++){
+				close(peerList[j].socket);
+			}
+			printf("Download completed for %s\n",fileName);
+			return 0;
+		}
+		rcvBytes = end_t+1;
+		currPeer++;
+		/*if(currPeer == listSize || end_t == fileSize){
+			//update tracker information in tracker server
+			sprintf(ip_ports.ip,"127.0.0.1");
+			sprintf(ip_ports.ip,"7658");
+			
+			int socket_desc = getClientSocket(ip_ports);
+			sprintf(my_reply,"update %s 0 %ld %s",fileName, end_t, getConf());
+			if(write(socket_desc , my_reply, strlen(my_reply))<0){
+				puts("update failed!!");
+			}
+			close(socket_desc);
+		}*/
+		if(currPeer == listSize){
+			currPeer = 0;
+		}
+	}
+	//printf("Download completed for %s",fileName);
+}
+
 //function to handle communication with tracker_server and other peers as client
-void *clientThread(void *ip_port){
+void clientThread(void *ip_port){
 	
 	struct ipPort ip_ports = *(struct ipPort*)ip_port;
 	int socket_desc = getClientSocket(ip_ports);
@@ -170,6 +335,11 @@ void *clientThread(void *ip_port){
 		else if(strcmp(tempp, "get") ==0){
 			puts("get from client");
 			tempp = strtok(NULL, " ");
+			//tempp = strtok(NULL, "\n");
+			//tempp = strtok(NULL, "\r");
+			
+			puts(tempp);
+			
 			int n;
   			FILE *fp;
   			char *filename = strdup(tempp);
@@ -196,18 +366,27 @@ void *clientThread(void *ip_port){
   			//after getting the tracker file from server
   			//check tracker file and send download request to peers
   			//asking for chunks
+  			pthread_t peer_download;
+			if(pthread_create(&peer_download, NULL, downloadHandler, filename) < 0) {
+    				perror("Could not create server send thread");
+    				return;
+  			}
+  			
   			printf("\n");
   			char end[50];
   			//sprintf(end,"%d bytes received",i);
   			sprintf(end,"%s tracker received",filename);
   			puts(end);
+  			//printf("%stest",filename);
   			
   			//reconnect to tracker
   			socket_desc = getClientSocket(ip_ports);
   		}
   		
   		else if(strcmp(tempp, "quit") == 10) {
-			return 0;
+  			puts("quit from tracker server");
+  			close(socket_desc);
+			return;
 		}
   		
   		bzero(my_reply, 2000);
@@ -215,7 +394,7 @@ void *clientThread(void *ip_port){
 		bzero(input, 2000);
 		bzero(file_message, 2000);
 	}
-	return 0;
+	return;
 }
 
 void *connection_handler(void *socket_desc)
@@ -239,39 +418,57 @@ void *connection_handler(void *socket_desc)
 		char *tempp;
 		tempp = strtok(file_message, " ");
 		if(strcmp(tempp, "get") ==0) {
-			puts("get from server");
+			puts("get from peer server");
 			tempp = strtok(NULL, " ");
-			tempp = strtok(tempp, "\n");
+			//tempp = strtok(tempp, "\n");
+			char *fileName = strdup(tempp);
+			tempp = strtok(NULL, " ");
+			char *start = strdup(tempp);
+			tempp = strtok(NULL, " ");
+			char *end = strdup(tempp);
+			
+			long start_t = atol(start);
+			long end_t = atol(end);
+			
 			FILE *fp;
-			sprintf(tempp, "%s",tempp);
+			//sprintf(tempp, "%s",tempp);
 			//puts(tempp);
 			
-			if( access( tempp, F_OK ) == 0 ) {
-				fp = fopen(tempp, "r");
-				struct stat s;
-				//strcat(my_message,s.st_size);
-				//write(sock , my_message , strlen(my_message));
-				//printf("File size %ld sent!!\n",s.st_size);
+			if( access( fileName, F_OK ) == 0 ) {
+				fp = fopen(fileName, "r");
   				char data[SIZE];
-  				int i = 0;
+  				long i = 0;
   				bzero(data, SIZE);
-  				int bs = fread(data, 1, sizeof(data), fp);
+  				int bs;
+  				
   				while(!feof(fp)) {
-  					i=i+1;
-    					write(sock, data, bs);
-    					//bzero(data, SIZE);
-    					bs = fread(data, 1, sizeof(data), fp);
-    					//printf("%d->",i);	
+  					bs = fread(data, 1, sizeof(data), fp);
+					if(i==start_t){
+						write(sock, data, bs);
+						printf("[LOOP] %d bytes sent\n",bs);
+						break;
+					}
+    					
+    					bzero(data, SIZE);
+    					i+=SIZE;
+    					i++;	
   				}
+  				
   				printf("\n");
   				char end[50];
-  				sprintf(end,"%d bytes sent",i);
-  				puts(end);
-  				close(sock);	
+  				sprintf(end,"%ld bytes sent",i);
+  				puts(end);	
+  				fclose(fp);
 			} else{
-				printf("failed to open file\n");
+				printf("File not found\n");
 				close(sock);	
 			}
+			bzero(client_message, 2000);
+			bzero(my_message, 2000);
+			bzero(file_message, 2000);
+			free(fileName);
+			free(start);
+			free(end);
 		}
 		
 	}
@@ -306,7 +503,7 @@ void *peerServer(void *unused){
 	
 	//Prepare the sockaddr_in structure
 	server.sin_family = AF_INET;
-	server.sin_addr.s_addr = INADDR_ANY;
+	server.sin_addr.s_addr = inet_addr( getIP() ); 
 	server.sin_port = htons( getPort() );
 	
 	//Bind
@@ -388,7 +585,9 @@ int main(int argc , char *argv[])
 			tempp = strtok(NULL, " ");
 			sprintf(ip_port->port,"%s", tempp);
 			
-			int res = *(int *)clientThread((void *) ip_port);
+			//int res = *(int *)clientThread((void *) ip_port);
+			
+			clientThread((void *) ip_port);
 			
 			/*pthread_t tracker_server;
 			if(pthread_create(&peer_server, NULL, clientThread, (void *) ip_port) < 0) {
@@ -401,6 +600,8 @@ int main(int argc , char *argv[])
 		if(strcmp(tempp, "quit") == 10) {
 			exit(0);
 		}
+		bzero(input, 2000);
+		bzero(file_message, 2000);
   	}
 	
 	

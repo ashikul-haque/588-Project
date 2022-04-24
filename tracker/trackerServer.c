@@ -8,7 +8,7 @@
 #include <fcntl.h>
 #include<pthread.h> //for threading , link with lpthread
 
-#define SIZE 1024
+#define SIZE 4096
 
 void *connection_handler(void *);
 
@@ -299,33 +299,34 @@ void *connection_handler(void *socket_desc)
 		else if(strcmp(tempp, "get") ==0) {
 			puts("get from server");
 			tempp = strtok(NULL, " ");
-			tempp = strtok(tempp, "\n");
+			//tempp = strtok(tempp, "\n");
 			FILE *fp;
 			sprintf(tempp, "%s",tempp);
 			//puts(tempp);
 			
 			if( access( tempp, F_OK ) == 0 ) {
 				fp = fopen(tempp, "r");
-				struct stat s;
+				//struct stat s;
 				//strcat(my_message,s.st_size);
 				//write(sock , my_message , strlen(my_message));
 				//printf("File size %ld sent!!\n",s.st_size);
   				char data[SIZE];
   				int i = 0;
   				bzero(data, SIZE);
-  				int bs = fread(data, 1, sizeof(data), fp);
+  				int bs;
+  				
   				while(!feof(fp)) {
-  					i=i+1;
-    					write(sock, data, bs);
-    					//bzero(data, SIZE);
-    					bs = fread(data, 1, sizeof(data), fp);
-    					//printf("%d->",i);	
+  					bs = fread(data, 1, sizeof(data), fp);
+					write(sock, data, bs);
+    					bzero(data, SIZE);
+    					i+=SIZE;	
   				}
+  				
   				printf("\n");
   				char end[50];
   				sprintf(end,"%d bytes sent",i);
   				puts(end);
-  				close(sock);	
+  				close(sock);
 			} else{
 				printf("failed to open file\n");
 				close(sock);	
