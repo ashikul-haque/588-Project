@@ -12,6 +12,8 @@
 
 #define SIZE 1024
 
+int peerId;
+
 struct ipPort{
 	char ip[30];
 	char port[20];
@@ -132,6 +134,11 @@ void *downloadHandler(void *trackerName){
 	char *trackerFileName = strdup((char *) trackerName);
 	int socket_desc;
 	
+	struct ipPort ip_ports2;
+	sprintf(ip_ports2.ip,"127.0.0.1");
+	sprintf(ip_ports2.port,"7658");
+	int tracker_sock = getClientSocket(ip_ports2);
+	
 	//getting peer info from tracker file
 	FILE *fp = fopen(trackerFileName, "r");
 	char *line;
@@ -151,10 +158,8 @@ void *downloadHandler(void *trackerName){
 		}
 		else if(i!=1 && i%2==0) {
 			char *token = strtok(line, " ");
-			//peerList[listSize].ip = token;
 			sprintf(peerList[listSize].ip,"%s",token);
 			token = strtok(NULL, " ");
-			//peerList[listSize].port = token;
 			sprintf(peerList[listSize].port,"%s",token);
 			
 			struct ipPort ip_ports;
@@ -282,16 +287,12 @@ void *downloadHandler(void *trackerName){
 				close(peerList[j].socket);
 			}
 			printf("Download completed for %s\n",fileName);
-			sprintf(ip_ports.ip,"127.0.0.1");
-			sprintf(ip_ports.port,"7658");
 			
-			puts("Updating tracker");
-			socket_desc = getClientSocket(ip_ports);
 			sprintf(my_reply,"update %s 0 %ld %s",fileName, end_t, getConf());
-			if(write(socket_desc , my_reply, strlen(my_reply))<0){
+			if(write(tracker_sock, my_reply, strlen(my_reply))<0){
 				puts("update failed!!");
 			}
-			close(socket_desc);
+			close(tracker_sock);
 			
 			return 0;
 		}
@@ -305,16 +306,10 @@ void *downloadHandler(void *trackerName){
 		
   		//printf("%d\n",msec);
   		if( c == 2000) {
-  			sprintf(ip_ports.ip,"127.0.0.1");
-			sprintf(ip_ports.port,"7658");
-			
-			//puts("Updating tracker");
-			socket_desc = getClientSocket(ip_ports);
 			sprintf(my_reply,"update %s 0 %ld %s",fileName, end_t, getConf());
-			if(write(socket_desc , my_reply, strlen(my_reply))<0){
+			if(write(tracker_sock, my_reply, strlen(my_reply))<0){
 				puts("update failed!!");
 			}
-			close(socket_desc);
 			
 			c=-1;
   		}
@@ -336,6 +331,12 @@ void clientThread(void *ip_port){
 	bzero(server_reply, 2000);
 	bzero(input, 2000);
 	bzero(file_message, 2000);
+	
+	sprintf(my_reply,"%d",peerId);
+	if(write(socket_desc , my_reply , strlen(my_reply))<0){
+		puts("send failed!!");
+	}
+	
 	while(fgets(input, 2000, stdin) != NULL) {
 		strcat(file_message, input);
 		char *tempp;
@@ -601,7 +602,7 @@ void *peerServer(void *unused){
 int main(int argc , char *argv[])
 {
 	
-	//int id = atoi(argv[1]);
+	peerId = atoi(argv[1]);
 	//printf("\n%d\n",id);
 	
 	pthread_t peer_server;

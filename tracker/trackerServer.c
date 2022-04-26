@@ -136,9 +136,17 @@ void *connection_handler(void *socket_desc)
 	//Get the socket descriptor
 	int sock = *(int*)socket_desc;
 	int read_size;
+	int peerId;
 	char client_message[2000], my_message[2000];
-	//message = "I am your handler\n";
-	//write(sock , message , strlen(message));
+	bzero(client_message, 2000);
+	bzero(my_message, 2000);
+	
+	//receive peer id
+	if((read_size = recv(sock , client_message , 2000 , 0)) > 0){
+		peerId = atoi(client_message);
+		printf("Peer %d: Connected\n", peerId);
+	}
+		
 	
 	//Receive a message from client
 	int i=0;
@@ -146,12 +154,11 @@ void *connection_handler(void *socket_desc)
 	while( (read_size = recv(sock , client_message , 2000 , 0)) > 0 )
 	{
 		strcat(file_message, client_message);
-		puts(client_message);
+		printf("Peer %d: %s",peerId,client_message);
 		//getting file name
 		char *tempp;
 		tempp = strtok(file_message, " ");
 		if(strcmp(tempp, "create") ==0) {
-			puts("create request");
 			//getting file name
 			tempp = strtok(NULL, " ");
 			
@@ -221,7 +228,7 @@ void *connection_handler(void *socket_desc)
 		}
 		else if(strcmp(tempp, "update") ==0) {
 			//need to update existing ip information
-			puts("update request");
+			//printf("[Peer %d] Update tracker request\n", peerId);
 			//getting file name
 			tempp = strtok(NULL, " ");
 			char *token;
@@ -291,13 +298,13 @@ void *connection_handler(void *socket_desc)
 			char *end = "<REP LIST END>\n";
 			strcat(my_message,end);
 			write(sock , my_message , strlen(my_message));
-			puts("List sent!!");
+			//puts("List sent!!");
 			bzero(client_message, 2000);
 			bzero(my_message, 2000);
 			bzero(file_message, 2000);
 		}
 		else if(strcmp(tempp, "get") ==0) {
-			puts("get from server");
+			//puts("get from server");
 			tempp = strtok(NULL, " ");
 			//tempp = strtok(tempp, "\n");
 			FILE *fp;
