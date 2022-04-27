@@ -385,8 +385,8 @@ void *downloadHandler(void *trackerName)
 	int socket_desc;
 	
 	struct ipPort ip_ports2;
-	sprintf(ip_ports2.ip,"%s",getServerIP);
-	sprintf(ip_ports2.port,"%d",getServerPort);
+	sprintf(ip_ports2.ip,"%s",getServerIP());
+	sprintf(ip_ports2.port,"%d",getServerPort());
 	int tracker_sock = getClientSocket(ip_ports2);
 	
 	char my_reply[MESSAGE_SIZE];
