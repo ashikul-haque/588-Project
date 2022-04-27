@@ -278,13 +278,13 @@ void clientThread(void *ip_port)
 			
 			//get file name
 			tempp = strtok(NULL, " ");
-			char fileName[200];
+			char fileName[CHAR_SIZE];
 			sprintf(fileName,"%s", tempp);
 			
 			//give description as description
 			tempp = strtok(NULL, " ");
 			tempp = strtok(tempp,"\n");
-			char fileDesc[200];
+			char fileDesc[CHAR_SIZE];
 			sprintf(fileDesc,"%s", tempp);
 			
 			//final message
@@ -342,7 +342,7 @@ void clientThread(void *ip_port)
   			}
   			
   			printf("\n");
-  			char end[50];
+  			char end[CHAR_SIZE];
   			sprintf(end,"%s received",filename);
   			puts(end);
   			
@@ -376,7 +376,7 @@ void clientThread(void *ip_port)
 
 void *downloadHandler(void *trackerName)
 {
-	peerInfo peerList[100];
+	peerInfo peerList[CHAR_SIZE];
 	int listSize = 0;
 	char* fileName;
 	long fileSize;
@@ -385,8 +385,8 @@ void *downloadHandler(void *trackerName)
 	int socket_desc;
 	
 	struct ipPort ip_ports2;
-	sprintf(ip_ports2.ip,"127.0.0.1");
-	sprintf(ip_ports2.port,"7658");
+	sprintf(ip_ports2.ip,"%s",getServerIP);
+	sprintf(ip_ports2.port,"%d",getServerPort);
 	int tracker_sock = getClientSocket(ip_ports2);
 	
 	char my_reply[MESSAGE_SIZE];
@@ -402,9 +402,9 @@ void *downloadHandler(void *trackerName)
 	FILE *fp = fopen(trackerFileName, "r");
 	char *line;
 	size_t len = 0;
-    	ssize_t read;
-    	int lineCount = 0;
-    	int disCount = 0; //number of disconnected peer
+    ssize_t read;
+    int lineCount = 0;
+    int disCount = 0; //number of disconnected peer
     	
 	while((read = getline(&line, &len, fp)) != -1) {
 		//getting filename, size, md5 from first line
@@ -419,10 +419,10 @@ void *downloadHandler(void *trackerName)
 		}
 		else if(lineCount%3 == 1) {
 			char *token = strtok(line, " ");
-			bzero(peerList[listSize].ip, 32);
+			bzero(peerList[listSize].ip, CHAR_SIZE);
 			sprintf(peerList[listSize].ip,"%s",token);
 			token = strtok(NULL, " ");
-			bzero(peerList[listSize].port, 20);
+			bzero(peerList[listSize].port, CHAR_SIZE);
 			sprintf(peerList[listSize].port,"%s",token);
 		}
 		else if(lineCount%3 == 2) {
@@ -607,7 +607,7 @@ char * calculate_file_md5(const char *filename)
 	int i;
 	MD5_CTX mdContext;
 	int bytes;
-	unsigned char data[1024];
+	unsigned char data[SIZE];
 	char *filemd5 = (char*) malloc(33 *sizeof(char));
 
 	FILE *inFile = fopen (filename, "rb");
@@ -618,7 +618,7 @@ char * calculate_file_md5(const char *filename)
 
 	MD5_Init (&mdContext);
 
-	while ((bytes = fread (data, 1, 1024, inFile)) != 0)
+	while ((bytes = fread (data, 1, SIZE, inFile)) != 0)
 
 	MD5_Update (&mdContext, data, bytes);
 
@@ -637,9 +637,9 @@ char * getConf()
 	FILE * fp;
 	fp = fopen("client.config", "r");
 	char *conf;
-	char *result = (char*) malloc(50 *sizeof(char));
-    	size_t len = 0;
-    	ssize_t read;
+	char *result = (char*) malloc(CHAR_SIZE *sizeof(char));
+    size_t len = 0;
+    ssize_t read;
 	read = getline(&conf, &len, fp);
 	sprintf(result,"%s",conf);
 	return result;
@@ -667,7 +667,7 @@ int getID()
 	FILE * fp;
 	fp = fopen("client.config", "r");
 	char *conf;
-	char *result = (char*) malloc(50 *sizeof(char));
+	char *result = (char*) malloc(CHAR_SIZE *sizeof(char));
     	size_t len = 0;
     	ssize_t read;
 	read = getline(&conf, &len, fp);
@@ -681,7 +681,7 @@ char * getServerIP()
 	FILE * fp;
 	fp = fopen("client.config", "r");
 	char *conf;
-	char *result = (char*) malloc(50 *sizeof(char));
+	char *result = (char*) malloc(CHAR_SIZE *sizeof(char));
     	size_t len = 0;
     	ssize_t read;
 	read = getline(&conf, &len, fp);
@@ -696,7 +696,7 @@ int getServerPort()
 	FILE * fp;
 	fp = fopen("client.config", "r");
 	char *conf;
-	char *result = (char*) malloc(50 *sizeof(char));
+	char *result = (char*) malloc(CHAR_SIZE *sizeof(char));
     	size_t len = 0;
     	ssize_t read;
 	read = getline(&conf, &len, fp);
@@ -718,8 +718,7 @@ int getClientSocket(struct ipPort ip_ports)
 	{
 		printf("Could not create socket");
 	}
-		
-	//server.sin_addr.s_addr = inet_addr("127.0.0.1");
+    
 	server.sin_addr.s_addr = inet_addr(ip_ports.ip);
 	server.sin_family = AF_INET;
 	server.sin_port = htons( atoi(ip_ports.port) );
