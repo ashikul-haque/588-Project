@@ -6,6 +6,7 @@
 #include<unistd.h>	//write
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <dirent.h>
 #include<pthread.h> //for threading , link with lpthread
 
 #define SIZE 1024
@@ -58,11 +59,7 @@ void *trackerServer(void *unused){
 	c = sizeof(struct sockaddr_in);
 	while( (new_socket = accept(socket_desc, (struct sockaddr *)&client, (socklen_t*)&c)) )
 	{
-		puts("Connection accepted");
-		
-		//Reply to the client
-		//message = "Hello Client , I have received your connection. And now I will assign a handler for you\n";
-		//write(new_socket , message , strlen(message));
+		//puts("Connection accepted");
 		
 		pthread_t sniffer_thread;
 		new_sock = malloc(1);
@@ -113,10 +110,10 @@ void replaceLine(FILE * fp, char *fileName, int lineNo, char *start, char *end) 
 	size_t len = 0;
     	ssize_t read;
     	int i = 1;
-    	printf("%d\n",lineNo);
+    	//printf("%d\n",lineNo);
     	FILE * nfp = fopen("temp.txt","w");
 	while((read = getline(&line, &len, fp)) != -1) {
-		puts(line);
+		//puts(line);
 		if(i==lineNo) {
 			fprintf(nfp, "%s %s\n", start, end);
 		}
@@ -130,6 +127,77 @@ void replaceLine(FILE * fp, char *fileName, int lineNo, char *start, char *end) 
 	remove(fileName);
     	rename("temp.txt",fileName);
 }
+
+void replaceStatus(FILE * fp, char *fileName, int lineNo, int status) {
+	//puts("in replace status");
+	char *line;
+	size_t len = 0;
+    	ssize_t read;
+    	int i = 1;
+    	//printf("%d\n",lineNo);
+    	FILE * nfp = fopen("temp.txt","w");
+	while((read = getline(&line, &len, fp)) != -1) {
+		//puts(line);
+		if(i==lineNo) {
+			fprintf(nfp, "%d\n", status);
+			//printf("replaced line no %d with %d\n", i, status);
+		}
+		else {
+			fprintf(nfp, "%s", line);
+		}
+		i++;
+	}
+	fclose(fp);
+	fclose(nfp);
+	remove(fileName);
+    	rename("temp.txt",fileName);
+}
+
+static int parse_ext(const struct dirent *dir)
+{
+     if(!dir)
+       return 0;
+
+     if(dir->d_type == DT_REG) { /* only deal with regular file */
+         const char *ext = strrchr(dir->d_name,'.');
+         if((!ext) || (ext == dir->d_name))
+           return 0;
+         else {
+           if(strcmp(ext, ".track") == 0)
+             return 1;
+         }
+     }
+
+     return 0;
+}
+
+void peerStatusUpdate(char *ip, char *port, int status)
+{
+	//get all tracker files
+	struct dirent **namelist;
+       int n;
+
+       n = scandir(".", &namelist, parse_ext, alphasort);
+       if (n < 0) {
+          	perror("Scandir");
+       }
+       else {
+       	while (n--) {
+               	FILE *fp;
+               	fp = fopen(namelist[n]->d_name,"r");
+               			
+               	printf("opening %s\n",namelist[n]->d_name);
+               	int lineCount = getLine(fp, ip, port);
+               	if(lineCount!=0) {
+   				fp = fopen(namelist[n]->d_name,"r");
+   				replaceStatus(fp, namelist[n]->d_name, lineCount+2, status);
+   			}
+               			
+               	free(namelist[n]);
+           	}
+           	free(namelist);
+       }
+}
  
 void *connection_handler(void *socket_desc)
 {
@@ -137,28 +205,49 @@ void *connection_handler(void *socket_desc)
 	int sock = *(int*)socket_desc;
 	int read_size;
 	int peerId;
-	char client_message[2000], my_message[2000];
+	char client_message[2000], my_message[2000], file_message[2000];
+	
+	int i=0;
+	
+	
 	bzero(client_message, 2000);
 	bzero(my_message, 2000);
+	bzero(file_message, 2000);
 	
-	//receive peer id
-	if((read_size = recv(sock , client_message , 2000 , 0)) > 0){
-		peerId = atoi(client_message);
-		printf("Peer %d: Connected\n", peerId);
-	}
-		
-	
-	//Receive a message from client
-	int i=0;
-	char file_message[2000];
 	while( (read_size = recv(sock , client_message , 2000 , 0)) > 0 )
 	{
 		strcat(file_message, client_message);
-		printf("Peer %d: %s",peerId,client_message);
+		puts(client_message);
 		//getting file name
 		char *tempp;
 		tempp = strtok(file_message, " ");
-		if(strcmp(tempp, "create") ==0) {
+		if(strcmp(tempp, "intro") == 0) {
+		
+			//get peer id from intro message
+			tempp = strtok(NULL, " ");
+			peerId = atoi(tempp);
+			printf("Peer %d connected\n", peerId);
+			
+			//get ip port to update status
+			tempp = strtok(NULL, " ");
+			char *ip = strdup(tempp);
+  			tempp = strtok(NULL, " ");
+   			char *port = strdup(tempp);
+   			port = strtok(port, "\n");
+   			port = strtok(port, "\r");
+			
+			printf("%s %s\n",ip,port);
+			//call status update fuction
+			peerStatusUpdate(ip, port, 1);
+			bzero(client_message, 2000);
+			bzero(my_message, 2000);
+			bzero(file_message, 2000);
+			
+		}
+		
+		else if(strcmp(tempp, "create") == 0) {
+		
+			printf("Peer %d: %s",peerId,client_message);
 			//getting file name
 			tempp = strtok(NULL, " ");
 			
@@ -198,7 +287,7 @@ void *connection_handler(void *socket_desc)
    					port = strtok(port, "\n");
    					port = strtok(port, "\r");
    					fprintf(fp,"%s %s %s %s\n",fileName,fileSize,md5,desc);
-   					fprintf(fp,"%s %s\n0 %s\n",ip,port,fileSize);
+   					fprintf(fp,"%s %s\n0 %s\n1\n",ip,port,fileSize);
    					fclose(fp);
    					FILE *listFP;
    					char *listName = "list";
@@ -227,9 +316,9 @@ void *connection_handler(void *socket_desc)
 			
 		}
 		else if(strcmp(tempp, "update") ==0) {
-			//need to update existing ip information
-			//printf("[Peer %d] Update tracker request\n", peerId);
-			//getting file name
+		
+			printf("Peer %d: %s",peerId,client_message);
+			
 			tempp = strtok(NULL, " ");
 			char *token;
 			char temp[100];
@@ -258,7 +347,7 @@ void *connection_handler(void *socket_desc)
    					int lineCount = getLine(fp, ip, port);
    					if (lineCount == 0) {
    						fp = fopen(token,"a");
-   						fprintf(fp,"%s %s\n%s %s\n",ip,port, start_bytes,end_bytes);
+   						fprintf(fp,"%s %s\n%s %s\n1\n",ip,port, start_bytes,end_bytes);
    						fclose(fp);
    					}
    					else {
@@ -286,6 +375,9 @@ void *connection_handler(void *socket_desc)
 			bzero(file_message, 2000);
 		}
 		else if(strcmp(tempp, "req") ==0) {
+			
+			printf("Peer %d: %s",peerId,client_message);
+			
 			FILE *fp;
 			char *filename = "list";
 			fp = fopen(filename, "r");
@@ -304,6 +396,9 @@ void *connection_handler(void *socket_desc)
 			bzero(file_message, 2000);
 		}
 		else if(strcmp(tempp, "get") ==0) {
+		
+			printf("Peer %d: %s",peerId,client_message);
+			
 			//puts("get from server");
 			tempp = strtok(NULL, " ");
 			//tempp = strtok(tempp, "\n");
@@ -313,10 +408,7 @@ void *connection_handler(void *socket_desc)
 			
 			if( access( tempp, F_OK ) == 0 ) {
 				fp = fopen(tempp, "r");
-				//struct stat s;
-				//strcat(my_message,s.st_size);
-				//write(sock , my_message , strlen(my_message));
-				//printf("File size %ld sent!!\n",s.st_size);
+				
   				char data[SIZE];
   				int i = 0;
   				bzero(data, SIZE);
@@ -342,17 +434,27 @@ void *connection_handler(void *socket_desc)
 			bzero(my_message, 2000);
 			bzero(file_message, 2000);*/
 		}
+		else if(strcmp(tempp, "terminate") ==0) {
+		
+			printf("Peer %d: %s",peerId,client_message);
+		
+			tempp = strtok(NULL, " ");
+			char *ip = strdup(tempp);
+  			tempp = strtok(NULL, " ");
+   			char *port = strdup(tempp);
+   			port = strtok(port, "\n");
+   			port = strtok(port, "\r");
+			
+			peerStatusUpdate(ip, port, 0);
+			close(sock);
+		}
 		
 	}
 	
 	if(read_size == 0)
 	{
-		puts("Client disconnected");
+		//printf("Peer %d terminated\n", peerId);
 		fflush(stdout);
-	}
-	else if(read_size == -1)
-	{
-		perror("Connection terminated");
 	}
 		
 	//Free the socket pointer

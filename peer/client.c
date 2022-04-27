@@ -93,8 +93,9 @@ int getPort(){
 typedef struct peerInfo {
 	char ip[32];
 	char port[20];
-	int socket, flag;
+	int socket;
 	long start, end;
+	int status;
 } peerInfo;
 
 int getClientSocket(struct ipPort ip_ports) {
@@ -116,8 +117,8 @@ int getClientSocket(struct ipPort ip_ports) {
 	//Connect to remote server
 	if (connect(socket_desc , (struct sockaddr *)&server , sizeof(server)) < 0)
 	{
-		puts("connect error");
-		exit(0);
+		puts("Connect error");
+		//exit(0);
 	}
 	
 	puts("Connected");
@@ -144,10 +145,12 @@ void *downloadHandler(void *trackerName){
 	char *line;
 	size_t len = 0;
     	ssize_t read;
-    	int i = 1;
+    	int lineCount = 0;
+    	int disCount = 0; //number of disconnected peer
+    	
 	while((read = getline(&line, &len, fp)) != -1) {
-		//getting filename and size from first line
-		if(i==1) {
+		//getting filename, size, md5 from first line
+		if(lineCount == 0) {
 			char *token = strtok(line, " ");
 			fileName = strdup(token);
 			token = strtok(NULL, " ");
@@ -156,27 +159,41 @@ void *downloadHandler(void *trackerName){
 			md5 = strdup(token);
 			
 		}
-		else if(i!=1 && i%2==0) {
+		else if(lineCount%3 == 1) {
 			char *token = strtok(line, " ");
+			bzero(peerList[listSize].ip, 32);
 			sprintf(peerList[listSize].ip,"%s",token);
 			token = strtok(NULL, " ");
+			bzero(peerList[listSize].port, 20);
 			sprintf(peerList[listSize].port,"%s",token);
-			
-			struct ipPort ip_ports;
-			sprintf(ip_ports.ip,"%s",peerList[listSize].ip);
-			sprintf(ip_ports.port,"%s",peerList[listSize].port);
-			
-			int socket = getClientSocket(ip_ports);
-			peerList[listSize].socket = socket;
 		}
-		else if(i!=1 && i%2==1) {
+		else if(lineCount%3 == 2) {
 			char *token = strtok(line, " ");
 			peerList[listSize].start = atol(token);
 			token = strtok(NULL, " ");
 			peerList[listSize].end = atol(token);
-			listSize++;
 		}
-		i++;
+		//set online or offline status
+		else if(lineCount%3 == 0) {
+			peerList[listSize].status = atoi(line);
+			if(peerList[listSize].status == 1){
+				
+				struct ipPort ip_ports;
+				sprintf(ip_ports.ip,"%s",peerList[listSize].ip);
+				sprintf(ip_ports.port,"%s",peerList[listSize].port);
+				
+				printf("%s %s\n", ip_ports.ip, ip_ports.port);
+				
+				
+				//connect to online peers
+				int socket = getClientSocket(ip_ports);
+				peerList[listSize].socket = socket;
+				
+				//online peers get added to the list
+				listSize++; 
+			}
+		}
+		lineCount++;
 	}
 	
 	fclose(fp);
@@ -205,7 +222,7 @@ void *downloadHandler(void *trackerName){
 	FILE *nfp = fopen(fileName,"w");
 	int c = 0;
 	
-	while(rcvBytes <= fileSize) {
+	while(rcvBytes <= fileSize && listSize>0) {
 		
 		long start_t = rcvBytes;
 		long end_t = start_t+SIZE;
@@ -237,13 +254,6 @@ void *downloadHandler(void *trackerName){
 				t++;
 			}
 		}
-
-		/*if(peerList[currPeer].end < end_t){
-			end_t = peerList[currPeer].end;
-		}*/
-		
-		//printf("Current peer %d\n",currPeer);
-		//printf("%ld %ld %ld\n",start_t,end_t,fileSize);
 		
 		sprintf(ip_ports.ip,"%s",peerList[currPeer].ip);
 		sprintf(ip_ports.port,"%s",peerList[currPeer].port);
@@ -332,18 +342,19 @@ void clientThread(void *ip_port){
 	bzero(input, 2000);
 	bzero(file_message, 2000);
 	
-	sprintf(my_reply,"%d",peerId);
+	sprintf(my_reply,"intro %d %s", peerId, getConf());
 	if(write(socket_desc , my_reply , strlen(my_reply))<0){
 		puts("send failed!!");
 	}
 	
+	bzero(my_reply, 2000);
 	while(fgets(input, 2000, stdin) != NULL) {
 		strcat(file_message, input);
 		char *tempp;
 		tempp = strtok(file_message, " ");
 		//puts(tempp);
 		if(strcmp(tempp, "create") == 0) {
-			puts("create from client");
+			puts("Create from client");
 			
 			//get file name
 			tempp = strtok(NULL, " ");
@@ -380,7 +391,7 @@ void clientThread(void *ip_port){
 			puts(server_reply);
 		}
 		else if(strcmp(tempp, "get") ==0){
-			puts("get from client");
+			//puts("get from client");
 			tempp = strtok(NULL, " ");
 			//tempp = strtok(NULL, "\n");
 			//tempp = strtok(NULL, "\r");
@@ -430,8 +441,14 @@ void clientThread(void *ip_port){
   			socket_desc = getClientSocket(ip_ports);
   		}
   		
-  		else if(strcmp(tempp, "quit") == 10) {
-  			puts("quit from tracker server");
+  		else if(strcmp(tempp, "terminate") == 10) {
+  			//construct terminate message
+  			sprintf(my_reply,"terminate %s", getConf());
+  			
+  			if(write(socket_desc , my_reply , strlen(my_reply))<0){
+				puts("send failed!!");
+			}
+			
   			close(socket_desc);
 			return;
 		}
