@@ -73,6 +73,7 @@ int main(int argc , char *argv[])
   	bzero(input, MESSAGE_SIZE);
 	bzero(file_message, MESSAGE_SIZE);
 	
+	//conenct to server
 	struct ipPort *ip_port = malloc(sizeof(struct ipPort));
 	sprintf(ip_port->ip,"%s", getServerIP());
 	sprintf(ip_port->port,"%d", getServerPort());
@@ -83,6 +84,8 @@ int main(int argc , char *argv[])
 		char *tempp;
 		tempp = strtok(file_message, " ");
 		//puts(tempp);
+		
+		//reconnect to tracker
 		if(strcmp(tempp, "connect") == 10) {
 			flag = 1;
 			clientThread((void *) ip_port);
@@ -181,6 +184,7 @@ void *connection_handler(void *socket_desc)
 		char *tempp;
 		tempp = strtok(file_message, " ");
 		
+		//handle get request from other peers
 		if(strcmp(tempp, "get") == 0) {
 			
 			tempp = strtok(NULL, " ");
@@ -493,6 +497,7 @@ void *downloadHandler(void *trackerName)
 	int c = 0;
 	sleep(1);
 	
+	//receiving files
 	while(rcvBytes <= fileSize && listSize>0) {
 		
 		long start_t = rcvBytes;
@@ -515,6 +520,7 @@ void *downloadHandler(void *trackerName)
 			}
 		}
 		
+		//check if endl is available in peer server
 		if(peerList[currPeer].end < end_t) {
 			int t = 0;
 			while(t<listSize) {
@@ -531,14 +537,16 @@ void *downloadHandler(void *trackerName)
 		int socket_desc = peerList[currPeer].socket;
 		
 		sprintf(my_reply,"get %s %ld %ld",fileName, start_t, end_t);
-		//puts("Sending get request");
+		
+		//send get request for specific bytes
 		if(write(socket_desc , my_reply, strlen(my_reply))<0){
 			puts("get failed!!");
 		}
 		
 		int n;
 		n = recv(socket_desc, buffer, SIZE, 0);
-		//printf("Received %d bytes\n",n);
+		
+		//if receive was bad
     		if (n <= 0){
     			puts("Retry");
     			bzero(my_reply, MESSAGE_SIZE);
@@ -550,10 +558,12 @@ void *downloadHandler(void *trackerName)
       			continue;
     		}
 		
+		//write to file
 		fwrite(buffer, 1, n, nfp);
 		bzero(my_reply, MESSAGE_SIZE);
 		bzero(buffer, SIZE);
 		
+		//check if every chunk was downloaded
 		if(end_t == fileSize){
 			fclose(nfp);
 			
@@ -587,7 +597,7 @@ void *downloadHandler(void *trackerName)
 		}
 		
 		
-  		//printf("%d\n",msec);
+  		//send update to tracker
   		if( c == MESSAGE_SIZE) {
 			sprintf(my_reply,"update %s 0 %ld %s",fileName, end_t, getConf());
 			if(write(tracker_sock, my_reply, strlen(my_reply))<0){

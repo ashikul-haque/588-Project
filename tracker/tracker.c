@@ -116,9 +116,8 @@ void *connection_handler(void *socket_desc)
 	while( (read_size = recv(sock , client_message , MESSAGE_SIZE , 0)) > 0 )
 	{
 		strcat(file_message, client_message);
-		//puts(client_message);
+
 		//getting command by tokenizing
-		
 		char *tempp;
 		tempp = strtok(file_message, " ");
 		
@@ -141,10 +140,10 @@ void *connection_handler(void *socket_desc)
 			//call status update fuction
 			pthread_mutex_lock(&lock1);
 			peerStatusUpdate(ip, port, 1);
-			pthread_mutex_unlock(&lock1);
 			bzero(client_message, MESSAGE_SIZE);
 			bzero(my_message, MESSAGE_SIZE);
 			bzero(file_message, MESSAGE_SIZE);
+			pthread_mutex_unlock(&lock1);
 		}
 		
 		//create tracker message from peer
@@ -245,7 +244,11 @@ void *connection_handler(void *socket_desc)
 			sprintf(token, "%s.track",token);
 			FILE *fp;
 			if( access( token, F_OK ) == 0 ) {
+			
+				pthread_mutex_lock(&lock1);
 				fp = fopen(token,"a+");
+				pthread_mutex_unlock(&lock1);
+				
 				char tracker[MESSAGE_SIZE];
     				strncpy(tracker,&client_message[7],MESSAGE_SIZE);
     				if ( fp )
@@ -262,7 +265,7 @@ void *connection_handler(void *socket_desc)
    					port = strtok(port, "\n");
    					port = strtok(port, "\r");
    					
-   					//already exisitng ip port check
+   					//already exisiting ip port check
    					int lineCount = getLine(fp, ip, port);
    					if (lineCount == 0) {
    						pthread_mutex_lock(&lock1);
@@ -292,16 +295,16 @@ void *connection_handler(void *socket_desc)
 				sprintf(temp,"<updatetracker %s ferr>",token);
 			}
 			strcat(my_message,temp);
-			//pthread_mutex_lock(&lock2);
+			
+			pthread_mutex_lock(&lock5);
 			write(sock , my_message , strlen(my_message));
-			//pthread_mutex_unlock(&lock2);
 			bzero(client_message, MESSAGE_SIZE);
 			bzero(my_message, MESSAGE_SIZE);
 			bzero(file_message, MESSAGE_SIZE);
-			//pthread_mutex_unlock(&lock1);
+			pthread_mutex_unlock(&lock5);
 		}
 		else if(strcmp(tempp, "req") ==0) {
-			
+			//hanlde request from peer
 			printf("Peer %d: %s",peerId,client_message);
 			
 			FILE *fp;
@@ -346,10 +349,6 @@ void *connection_handler(void *socket_desc)
     					i+=SIZE;	
   				}
   				
-  				/*printf("\n");
-  				char end[50];
-  				sprintf(end,"%d bytes sent",i);
-  				puts(end);*/
   				close(sock);
   				fclose(fp);
   				pthread_mutex_unlock(&lock1);
@@ -358,9 +357,6 @@ void *connection_handler(void *socket_desc)
 				close(sock);	
 			}
 			
-			/*bzero(client_message, MESSAGE_SIZE);
-			bzero(my_message, MESSAGE_SIZE);
-			bzero(file_message, MESSAGE_SIZE);*/
 		}
 		else if(strcmp(tempp, "terminate") ==0) {
 		
