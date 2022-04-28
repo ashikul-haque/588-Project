@@ -11,8 +11,8 @@
 #include <time.h>
 
 #define SIZE 1024
-#define MESSAGE_SIZE 2048
-#define CHAR_SIZE 120
+#define MESSAGE_SIZE 512
+#define CHAR_SIZE 128
 
 int peerId,flag=1;
 
@@ -188,7 +188,7 @@ void *connection_handler(void *socket_desc)
 			char *start = strdup(tempp);
 			tempp = strtok(NULL, " ");
 			char *end = strdup(tempp);
-
+			
 			long start_t = atol(start);
 			long end_t = atol(end);
 			
@@ -196,29 +196,28 @@ void *connection_handler(void *socket_desc)
 			
 			FILE *fp;
 			
-			if( access( fileName, F_OK ) == 0 ) {
-				fp = fopen(fileName, "r");
-  				char data[SIZE];
-  				long i = 0;
-  				bzero(data, SIZE);
-  				int bs;
-  				
-  				while(!feof(fp)) {
-  					bs = fread(data, 1, sizeof(data), fp);
-					if(i==start_t){
-						write(sock, data, bs);
-						break;
-					}
-    					
-    					bzero(data, SIZE);
-    					i+=SIZE;	
-  				}
-  					
-  				fclose(fp);
-			} else{
-				printf("File not found\n");
-				close(sock);	
+			fp = fopen(fileName, "r");
+			if (fp == NULL) {
+				perror("File open failed");
 			}
+  			char data[SIZE] = {0};
+  			long i = 0;
+  			int bs;
+  			while(!feof(fp)) {
+  				printf("Data read before for %ld\n",i);
+  				bs = fread(data, 1, sizeof(data), fp);
+  				printf("Peer %d requested from %ld to %ld bytes\n",id,start_t,end_t);
+  				printf("Data read complete for %ld\n",i);
+				if(i==start_t){
+					write(sock, data, bs);
+					break;
+				}
+    					
+    				bzero(data, SIZE);
+    				i+=SIZE;	
+  			}
+  			
+  			fclose(fp);
 			bzero(client_message, MESSAGE_SIZE);
 			bzero(my_message, MESSAGE_SIZE);
 			bzero(file_message, MESSAGE_SIZE);
@@ -398,13 +397,15 @@ void *downloadHandler(void *trackerName)
 	}
 	bzero(my_reply, MESSAGE_SIZE);
 	
+	//need to handle already downloaded part
+	
 	//getting peer info from tracker file
 	FILE *fp = fopen(trackerFileName, "r");
 	char *line;
 	size_t len = 0;
-    ssize_t read;
-    int lineCount = 0;
-    int disCount = 0; //number of disconnected peer
+    	ssize_t read;
+    	int lineCount = 0;
+    	int disCount = 0; //number of disconnected peer
     	
 	while((read = getline(&line, &len, fp)) != -1) {
 		//getting filename, size, md5 from first line

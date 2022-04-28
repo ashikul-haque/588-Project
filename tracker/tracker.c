@@ -10,8 +10,8 @@
 #include<pthread.h> //for threading , link with lpthread
 
 #define SIZE 1024
-#define MESSAGE_SIZE 2048
-#define CHAR_SIZE 120
+#define MESSAGE_SIZE 512
+#define CHAR_SIZE 128
 
 void *connection_handler(void *);
 
