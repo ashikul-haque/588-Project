@@ -14,7 +14,8 @@
 #define MESSAGE_SIZE 512
 #define CHAR_SIZE 128
 
-int peerId,flag=1;
+int peerId, flag=1;
+pthread_mutex_t lock1, lock2, lock3, lock4, lock5;
 
 struct ipPort{
 	char ip[CHAR_SIZE];
@@ -175,7 +176,7 @@ void *connection_handler(void *socket_desc)
 	
 	while( (read_size = recv(sock , client_message , MESSAGE_SIZE , 0)) > 0 )
 	{
-
+		pthread_mutex_lock(&lock4);
 		strcat(file_message, client_message);
 		char *tempp;
 		tempp = strtok(file_message, " ");
@@ -196,25 +197,32 @@ void *connection_handler(void *socket_desc)
 			
 			FILE *fp;
 			
+			//pthread_mutex_lock(&lock1);
 			fp = fopen(fileName, "r");
+			//pthread_mutex_unlock(&lock1);
 			if (fp == NULL) {
 				perror("File open failed");
 			}
   			char data[SIZE] = {0};
   			long i = 0;
   			int bs;
-  			while(!feof(fp)) {
-  				printf("Data read before for %ld\n",i);
+  			while(1){
+  				//pthread_mutex_lock(&lock5);
   				bs = fread(data, 1, sizeof(data), fp);
-  				printf("Peer %d requested from %ld to %ld bytes\n",id,start_t,end_t);
-  				printf("Data read complete for %ld\n",i);
+  				//pthread_mutex_lock(&lock5);
 				if(i==start_t){
+					//pthread_mutex_lock(&lock2);
 					write(sock, data, bs);
+					//pthread_mutex_unlock(&lock2);
 					break;
-				}
-    					
+				}	
     				bzero(data, SIZE);
-    				i+=SIZE;	
+    				i+=SIZE;
+    				//pthread_mutex_lock(&lock3);
+    				if(feof(fp)) {
+    					break;
+    				}
+    				//pthread_mutex_unlock(&lock3);
   			}
   			
   			fclose(fp);
@@ -224,8 +232,9 @@ void *connection_handler(void *socket_desc)
 			free(fileName);
 			free(start);
 			free(end);
+			
 		}
-		
+		pthread_mutex_unlock(&lock4);
 	}
 	
 	if(read_size == 0)

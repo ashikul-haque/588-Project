@@ -13,6 +13,8 @@
 #define MESSAGE_SIZE 512
 #define CHAR_SIZE 128
 
+pthread_mutex_t lock1,lock2,lock3,lock4,lock5, lock6;
+
 void *connection_handler(void *);
 
 void *trackerServer(void *);
@@ -137,7 +139,9 @@ void *connection_handler(void *socket_desc)
    			port = strtok(port, "\r");
 			
 			//call status update fuction
+			pthread_mutex_lock(&lock6);
 			peerStatusUpdate(ip, port, 1);
+			pthread_mutex_unlock(&lock6);
 			bzero(client_message, MESSAGE_SIZE);
 			bzero(my_message, MESSAGE_SIZE);
 			bzero(file_message, MESSAGE_SIZE);
@@ -207,8 +211,10 @@ void *connection_handler(void *socket_desc)
 						fprintf(listFP,"%s %s %s\n",fileName,fileSize,md5);
 					} 
 					else {
+						
 						listFP = fopen(listName, "w");
 						fprintf(listFP,"%s %s %s\n",fileName,fileSize,md5);
+						
 					}
 					fclose(listFP);
     				}
@@ -259,13 +265,17 @@ void *connection_handler(void *socket_desc)
    					//already exisitng ip port check
    					int lineCount = getLine(fp, ip, port);
    					if (lineCount == 0) {
+   						pthread_mutex_lock(&lock1);
    						fp = fopen(token,"a");
    						fprintf(fp,"%s %s\n%s %s\n1\n",ip,port, start_bytes,end_bytes);
    						fclose(fp);
+   						pthread_mutex_unlock(&lock1);
    					}
    					else {
+   						pthread_mutex_lock(&lock1);
    						fp = fopen(token,"r");
    						replaceLine(fp, token, lineCount+1, start_bytes, end_bytes);
+   						pthread_mutex_unlock(&lock1);
    					}		
    					
    					
@@ -282,7 +292,9 @@ void *connection_handler(void *socket_desc)
 				sprintf(temp,"<updatetracker %s ferr>",token);
 			}
 			strcat(my_message,temp);
+			pthread_mutex_lock(&lock2);
 			write(sock , my_message , strlen(my_message));
+			pthread_mutex_unlock(&lock2);
 			bzero(client_message, MESSAGE_SIZE);
 			bzero(my_message, MESSAGE_SIZE);
 			bzero(file_message, MESSAGE_SIZE);
@@ -293,6 +305,7 @@ void *connection_handler(void *socket_desc)
 			
 			FILE *fp;
 			char *filename = "list";
+			pthread_mutex_lock(&lock3);
 			fp = fopen(filename, "r");
 			char data[MESSAGE_SIZE];
 			char *begin = "<REP LIST X>\n";
@@ -303,6 +316,7 @@ void *connection_handler(void *socket_desc)
 			char *end = "<REP LIST END>\n";
 			strcat(my_message,end);
 			write(sock , my_message , strlen(my_message));
+			pthread_mutex_unlock(&lock3);
 			//puts("List sent!!");
 			bzero(client_message, MESSAGE_SIZE);
 			bzero(my_message, MESSAGE_SIZE);
@@ -315,7 +329,7 @@ void *connection_handler(void *socket_desc)
 			//tempp = strtok(tempp, "\n");
 			FILE *fp;
 			sprintf(tempp, "%s",tempp);
-			
+			pthread_mutex_lock(&lock4);
 			if( access( tempp, F_OK ) == 0 ) {
 				fp = fopen(tempp, "r");
 				
@@ -337,6 +351,7 @@ void *connection_handler(void *socket_desc)
   				puts(end);*/
   				close(sock);
   				fclose(fp);
+  				pthread_mutex_unlock(&lock4);
 			} else{
 				printf("failed to open file\n");
 				close(sock);	
@@ -356,8 +371,9 @@ void *connection_handler(void *socket_desc)
    			char *port = strdup(tempp);
    			port = strtok(port, "\n");
    			port = strtok(port, "\r");
-			
+			pthread_mutex_lock(&lock5);
 			peerStatusUpdate(ip, port, 0);
+			pthread_mutex_unlock(&lock5);
 			close(sock);
 		}
 		
