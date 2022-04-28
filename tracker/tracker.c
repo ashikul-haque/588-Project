@@ -139,9 +139,9 @@ void *connection_handler(void *socket_desc)
    			port = strtok(port, "\r");
 			
 			//call status update fuction
-			pthread_mutex_lock(&lock6);
+			pthread_mutex_lock(&lock1);
 			peerStatusUpdate(ip, port, 1);
-			pthread_mutex_unlock(&lock6);
+			pthread_mutex_unlock(&lock1);
 			bzero(client_message, MESSAGE_SIZE);
 			bzero(my_message, MESSAGE_SIZE);
 			bzero(file_message, MESSAGE_SIZE);
@@ -235,7 +235,7 @@ void *connection_handler(void *socket_desc)
 		
 		//update tracker request from peer
 		else if(strcmp(tempp, "update") ==0) {
-		
+			
 			printf("Peer %d: %s",peerId,client_message);
 			
 			tempp = strtok(NULL, " ");
@@ -292,12 +292,13 @@ void *connection_handler(void *socket_desc)
 				sprintf(temp,"<updatetracker %s ferr>",token);
 			}
 			strcat(my_message,temp);
-			pthread_mutex_lock(&lock2);
+			//pthread_mutex_lock(&lock2);
 			write(sock , my_message , strlen(my_message));
-			pthread_mutex_unlock(&lock2);
+			//pthread_mutex_unlock(&lock2);
 			bzero(client_message, MESSAGE_SIZE);
 			bzero(my_message, MESSAGE_SIZE);
 			bzero(file_message, MESSAGE_SIZE);
+			//pthread_mutex_unlock(&lock1);
 		}
 		else if(strcmp(tempp, "req") ==0) {
 			
@@ -305,7 +306,7 @@ void *connection_handler(void *socket_desc)
 			
 			FILE *fp;
 			char *filename = "list";
-			pthread_mutex_lock(&lock3);
+			pthread_mutex_lock(&lock2);
 			fp = fopen(filename, "r");
 			char data[MESSAGE_SIZE];
 			char *begin = "<REP LIST X>\n";
@@ -316,7 +317,7 @@ void *connection_handler(void *socket_desc)
 			char *end = "<REP LIST END>\n";
 			strcat(my_message,end);
 			write(sock , my_message , strlen(my_message));
-			pthread_mutex_unlock(&lock3);
+			pthread_mutex_unlock(&lock2);
 			//puts("List sent!!");
 			bzero(client_message, MESSAGE_SIZE);
 			bzero(my_message, MESSAGE_SIZE);
@@ -329,7 +330,7 @@ void *connection_handler(void *socket_desc)
 			//tempp = strtok(tempp, "\n");
 			FILE *fp;
 			sprintf(tempp, "%s",tempp);
-			pthread_mutex_lock(&lock4);
+			pthread_mutex_lock(&lock1);
 			if( access( tempp, F_OK ) == 0 ) {
 				fp = fopen(tempp, "r");
 				
@@ -351,7 +352,7 @@ void *connection_handler(void *socket_desc)
   				puts(end);*/
   				close(sock);
   				fclose(fp);
-  				pthread_mutex_unlock(&lock4);
+  				pthread_mutex_unlock(&lock1);
 			} else{
 				printf("failed to open file\n");
 				close(sock);	
@@ -371,9 +372,9 @@ void *connection_handler(void *socket_desc)
    			char *port = strdup(tempp);
    			port = strtok(port, "\n");
    			port = strtok(port, "\r");
-			pthread_mutex_lock(&lock5);
+			pthread_mutex_lock(&lock1);
 			peerStatusUpdate(ip, port, 0);
-			pthread_mutex_unlock(&lock5);
+			pthread_mutex_unlock(&lock1);
 			close(sock);
 		}
 		
