@@ -15,18 +15,45 @@
 
 pthread_mutex_t lock1,lock2,lock3,lock4,lock5, lock6;
 
+
+/*This function is responsible for tracker's multi-threaded
+ server functionalities. This function mainly handles
+ multi-threaded incoming requests of peers.*/
 void *connection_handler(void *);
 
+/*This is the tracker server function that is listening for
+ incoming connections, and after successfully accepting a
+ connection it assigns a connection handler
+ mentioned above by multi-threading*/
 void *trackerServer(void *);
 
+/*This function is a utility function. It takes file
+ pointer, ip, port as argument and returns the line no that
+ contains this ip and port*/
 int getLine(FILE * fp, char *ip, char *port);
 
+/*This function is a utility function. It takes file pointer,
+ file name, line no to replcae, start, end as argument.
+ It replace the specific line of a file with start and end.
+ This function mainly helps with updating exisiting peers'
+ downloaded number of chunks*/
 void replaceLine(FILE * fp, char *fileName, int lineNo, char *start, char *end);
 
+/*This function is a utility function. It takes file pointer,
+ file name, line no to replcae, status as argument.
+ It replace the specific line of a file with status.
+ This function mainly helps with updating exisiting peers'
+ online or offline status*/
 void replaceStatus(FILE * fp, char *fileName, int lineNo, int status);
 
+/*This function is also a utility function. It helps with
+ finding all the files with a extension in a directory. It
+ enables us to update all the track file with above
+ mentioned replaceStatus function*/
 static int parse_ext(const struct dirent *dir);
 
+/*This function utilizes above mentioned functions
+ replaceStatus and parse_ext*/
 void peerStatusUpdate(char *ip, char *port, int status);
 
 
