@@ -30,30 +30,68 @@ typedef struct peerInfo {
 	int status;
 } peerInfo;
 
+/*This function returns filesize after
+ getting file name as argument*/
 off_t fsize(const char *filename);
 
+/*This function is responsible
+ for calculating md5. It uses openssl library*/
 char * calculate_file_md5(const char *filename);
 
+/*This function takes no argument.
+ It is responsible for returning
+ the ip address and port of peer server.
+ It gets these information from config file*/
 char * getConf();
 
+/*This function returns the ip addess of peer server.
+ It uses getConf() function first, then use
+ string tokenizer*/
 char * getIP();
 
+/*This function returns the port of peer server.
+ It uses getConf(), then use tokenizer, and
+ atoi*/
 int getPort();
 
+/*This function returns the peer id from config
+ file*/
 int getID();
 
+/*This function returns the tracker server's ip
+ address by reading the config file*/
 char * getServerIP();
 
+/*This function returns the port of tracker server
+ by reading the config file*/
 int getServerPort();
 
+/*This function returns the socket after successfully
+ connectiong with any server. The server's ip address and port is given
+ as argument to this function*/
 int getClientSocket(struct ipPort ip_ports);
 
+/*This function takes tracker file name as argument,
+ and handle connection to all available peers,
+ requesting chunks from them, writing to file,
+ chceking md5 after download is compelted*/
 void *downloadHandler(void *trackerName);
 
+/*This function is responsible for all client communication
+ with tracker server. It handles all basic commands
+ like create, req, get from user input and send
+ message to the tracker server*/
 void clientThread(void *ip_port);
 
+/*This function is responsible for peer's multi threaded
+ server functionalities. This function mainly handles
+ multi threaded download capabilties of peer*/
 void *connection_handler(void *socket_desc);
 
+/*This is the peer server function that is listening for
+ incoming connections, and after successfully accepting a
+ connection it assigns a connection handler
+ mentioned above by multi threading*/
 void *peerServer(void *unused);
 
 
@@ -62,6 +100,8 @@ int main(int argc , char *argv[])
 	
 	peerId = getID();
 	
+    /*Here we create our peer server that keeps
+     listening for incoming connections*/
 	pthread_t peer_server;
 	if(pthread_create(&peer_server, NULL, peerServer, NULL) < 0) {
     		perror("Could not create server send thread");
@@ -73,7 +113,7 @@ int main(int argc , char *argv[])
   	bzero(input, MESSAGE_SIZE);
 	bzero(file_message, MESSAGE_SIZE);
 	
-	//conenct to server
+	//conenct to tracker server
 	struct ipPort *ip_port = malloc(sizeof(struct ipPort));
 	sprintf(ip_port->ip,"%s", getServerIP());
 	sprintf(ip_port->port,"%d", getServerPort());
